@@ -503,6 +503,33 @@
     <Folder Include="src\config\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\drv_ctrl.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\drv_ctrl.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\force_sense.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\force_sense.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\main.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\plc_com.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\plc_com.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\z_axis.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\z_axis.h">
+      <SubType>compile</SubType>
+    </Compile>
     <None Include="src\asf.h">
       <SubType>compile</SubType>
     </None>

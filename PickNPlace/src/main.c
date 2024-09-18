@@ -6,21 +6,8 @@
  */
 
 /**
- * \mainpage User Application template doxygen documentation
- *
- * \par Empty user application template
- *
- * This is a bare minimum user application template.
- *
- * For documentation of the board, go \ref group_common_boards "here" for a link
- * to the board-specific documentation.
- *
- * \par Content
- *
- * -# Include the ASF header files (through asf.h)
- * -# Minimal main function that starts with a call to system_init()
- * -# Basic usage of on-board LED and button
- * -# "Insert application code here" comment
+ * Main function with loop. Here just the state machine is implemented, all the other functionality is handled in dedicated functions.
+ * Also the callback for incoming usart com from the PLC is register in this file.
  *
  */
 
