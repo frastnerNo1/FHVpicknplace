@@ -2,6 +2,8 @@
 # Automatically-generated file. Do not edit or delete the file
 ################################################################################
 
+src\ASF\common2\services\delay\sam0\systick_counter.c
+
 src\ASF\sam0\drivers\adc\adc_sam_d_r_h\adc.c
 
 src\ASF\sam0\drivers\sercom\sercom.c

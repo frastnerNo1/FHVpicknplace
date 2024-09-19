@@ -20,87 +20,37 @@
 #define DRIVE_REG       0x06
 #define STATUS_REG      0x07
 
-struct drv_config_struct {
-	
-	/*CTRL_RDIR*/
-	enum drv_rdir;
-	/*CTRL_MODE*/
-	enum drv_mode;
-	/*CTRL_EXSTALL*/
-	enum drv_exstall;
-	/*CTRL_ISGAIN*/
-	enum drv_isgain;
-	/*CTRL_DTIME*/
-	enum drv_dtime;
-	
-	/*TORQUE_TORQUE*/
-	uint8_t drv_torque;
-	/*TORQUE_SMPLTH*/
-	enum drv_smplth;
-	
-	/*OFF_TOFF*/
-	uint8_t drv_toff;
-	/*OFF_PWMMODE*/
-	enum drv_pwmmode;
-	
-    /*BLANK_TBLANK*/
-	uint8_t drv_tblank;
-	/*BLANK_ABT*/
-	enum drv_abt;
-	
-	/*DECAY_TDECAY*/
-	uint8_t drv_tdecay;
-	/*DECAY_DECMOD*/
-	enum drv_decmod;
-	
-	/*STALL_SDTHR*/
-	uint8_t drv_sdthr;
-	/*STALL_SDCNT*/
-	enum drv_sdcnt;
-	/*STALL_VDIV*/
-	enum drv_vdiv;
-	
-	/*DRIVE_OCPTH*/
-	enum drv_ocpth;
-	/*DRIVE_OCPDEG*/
-	enum drv_ocpdeg;
-	/*DRIVE_TDRIVEN*/
-	enum drv_tdriven;
-	/*DRIVE_TDRIVEP*/
-	enum drv_tdrivep;
-	/*DRIVE_IDRIVEN*/
-	enum drv_idriven;
-	/*DRIVE_IDRIVEP*/
-	enum drv_idrivep;
-	
-	};
-	
+	enum drv_en {
+		DRV_ENABLE             = (1 << 0),
+		DRV_DISABLE            = (0 << 0)
+		};
+
 	enum drv_rdir {
 		/** Direction by DIR Pin */
-		DRV_DIRPIN             = 0 << 1,
+		DRV_DIRPIN             = (0 << 1),
 		/** Direction by inverse DIR Pin */
-		DRV_INVDIRPIN          = 1 << 1,
+		DRV_INVDIRPIN          = (1 << 1),
 	};
 	
 	enum drv_mode {
 		/** Full-step*/
-		DRV_MODE_FULL          = 0b0000 << 3,
+		DRV_MODE_FULL          = (0b0000 << 3),
 		/** Half-step*/
-		DRV_MODE_HALF          = 0b0001 << 3,
+		DRV_MODE_HALF          = (0b0001 << 3),
 		/** 1/4 step*/
-		DRV_MODE_1_4           = 0b0010 << 3,
+		DRV_MODE_1_4           = (0b0010 << 3),
 		/** 1/8 step*/
-		DRV_MODE_1_8           = 0b0011 << 3,
+		DRV_MODE_1_8           = (0b0011 << 3),
 		/** 1/16 step*/
-		DRV_MODE_1_16          = 0b0100 << 3,
+		DRV_MODE_1_16          = (0b0100 << 3),
 		/** 1/32 step*/
-		DRV_MODE_1_32          = 0b0101 << 3,
+		DRV_MODE_1_32          = (0b0101 << 3),
 		/** 1/64 step*/
-		DRV_MODE_1_64          = 0b0110 << 3,
+		DRV_MODE_1_64          = (0b0110 << 3),
 		/** 1/128 step*/
-		DRV_MODE_1_128         = 0b0111 << 3,
+		DRV_MODE_1_128         = (0b0111 << 3),
 		/** 1/256 step*/
-		DRV_MODE_1_256         = 0b1000 << 3		
+		DRV_MODE_1_256         = (0b1000 << 3)
 	};
 	
 	enum drv_exstall {
@@ -211,5 +161,77 @@ struct drv_config_struct {
 		DRV_IDRIVEP_400mA  = 0b11 << 10
 	};
 
+struct drv_config_struct {
+	
+	enum drv_en enable;
+	
+	bool step;
+	
+	/*CTRL_RDIR*/
+	enum drv_rdir direction_set;
+	/*CTRL_MODE*/
+	enum drv_mode step_mode;
+	/*CTRL_EXSTALL*/
+	enum drv_exstall stall_detect;
+	/*CTRL_ISGAIN*/
+	enum drv_isgain isense_gain;
+	/*CTRL_DTIME*/
+	enum drv_dtime dead_time_insert;
+	
+	/*TORQUE_TORQUE*/
+	uint8_t drv_torque;
+	/*TORQUE_SMPLTH*/
+	enum drv_smplth backemf_sample_th;
+	
+	/*OFF_TOFF*/
+	uint8_t drv_toff;
+	/*OFF_PWMMODE*/
+	enum drv_pwmmode pwm_mode;
+	
+    /*BLANK_TBLANK*/
+	uint8_t drv_tblank;
+	/*BLANK_ABT*/
+	enum drv_abt adaptive_blanking_time;
+	
+	/*DECAY_TDECAY*/
+	uint8_t drv_tdecay;
+	/*DECAY_DECMOD*/
+	enum drv_decmod decay_mode;
+	
+	/*STALL_SDTHR*/
+	uint8_t drv_sdthr;
+	/*STALL_SDCNT*/
+	enum drv_sdcnt stall_count;
+	/*STALL_VDIV*/
+	enum drv_vdiv back_emf_div;
+	
+	/*DRIVE_OCPTH*/
+	enum drv_ocpth ocp_threshold;
+	/*DRIVE_OCPDEG*/
+	enum drv_ocpdeg ocp_deglitch_time;
+	/*DRIVE_TDRIVEN*/
+	enum drv_tdriven ls_drive_time;
+	/*DRIVE_TDRIVEP*/
+	enum drv_tdrivep hs_drive_time;
+	/*DRIVE_IDRIVEN*/
+	enum drv_idriven ls_current;
+	/*DRIVE_IDRIVEP*/
+	enum drv_idrivep hs_current;
+	
+	};
+
+int drv_ctrl_init(struct drv_config_struct *);
+
+int drv_ctrl_enable(void);
+
+int drv_ctrl_disable(void);
+
+int drv_ctrl_home(void);
+
+int drv_ctrl_moveto(uint16_t);
+
+int drv_ctrl_move_till_force(uint8_t);
+
+uint16_t drv_ctrl_getpos(void);
 
 #endif /* DRV_CTRL_H_ */

@@ -107,6 +107,8 @@ src/main.d src/main.o: ../src/main.c ../src/asf.h \
  ../src/ASF/sam0/drivers/system/power/power_sam_d_r_h/power.h \
  ../src/ASF/sam0/drivers/system/reset/reset_sam_d_r_h/reset.h \
  ../src/ASF/sam0/drivers/adc/adc_sam_d_r_h/adc_feature.h \
+ ../src/ASF/common2/services/delay/delay.h \
+ ../src/ASF/common2/services/delay/sam0/systick_counter.h \
  ../src/ASF/common/boards/board.h \
  ../src/ASF/sam0/boards/samd20_xplained_pro/samd20_xplained_pro.h \
  ../src/config/conf_board.h ../src/ASF/sam0/drivers/port/port.h \
@@ -126,7 +128,7 @@ src/main.d src/main.o: ../src/main.c ../src/asf.h \
  ../src/ASF/sam0/drivers/tc/tc.h \
  ../src/ASF/common/services/serial/serial.h \
  ../src/ASF/common/services/serial/sam0_usart/usart_serial.h \
- ../src/main.h
+ ../src/main.h ../src/drv_ctrl.h
 
 ../src/asf.h:
 
@@ -350,6 +352,10 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\arm-no
 
 ../src/ASF/sam0/drivers/adc/adc_sam_d_r_h/adc_feature.h:
 
+../src/ASF/common2/services/delay/delay.h:
+
+../src/ASF/common2/services/delay/sam0/systick_counter.h:
+
 ../src/ASF/common/boards/board.h:
 
 ../src/ASF/sam0/boards/samd20_xplained_pro/samd20_xplained_pro.h:
@@ -393,3 +399,5 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\arm-no
 ../src/ASF/common/services/serial/sam0_usart/usart_serial.h:
 
 ../src/main.h:
+
+../src/drv_ctrl.h:
