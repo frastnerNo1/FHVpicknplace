@@ -12,4 +12,10 @@
 #include "main.h"
 
 
+int force_sense_calibrate(void);
+
+int16_t force_sense_get_millinewton(void);
+
+int16_t force_sense_get_gramm(void);
+
 #endif /* FORCE_SENSE_H_ */

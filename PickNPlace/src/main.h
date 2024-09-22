@@ -36,8 +36,12 @@
 #define Z_AXIS_STEPS_PER_REV            (200 * Z_AXIS_MICROSTEPS)
 #define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)
 
+#define FORCE_SENSE_mN_PER_COUNT        10
+#define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)      
+
 extern struct spi_module spi_master_instance;
 extern struct spi_slave_inst spi_motor_controller;
 extern struct adc_module adc_instance;
+extern struct usart_module usart_instance;
 
 #endif /* MAIN_H_ */

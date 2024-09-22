@@ -5,13 +5,39 @@
  *  Author: floro
  */ 
 
-/* In this file the communication via usart with the PLC is handled. Callback for incoming com is implemented in main.c*/
+/* In this file the communication via usart with the PLC is handled. Callback registration for incoming com is implemented in main.c*/
 
-/* Todo: implement the following functions:
-- convert telegram from PLC to state
-- convert result to telegram for PLC
-- write to PLC via usart
-*/
+/************************************************************************/
+/* COMMANDTABLE:                                                        */
+/* I --> System Init                         RX Only                    */
+/* M --> Move, followed by specifier         RX Only                    */
+/* T --> Tool, followed by specifier         RX Only                    */
+/* F --> Force, init force transmition       RX Only                    */
+/*                                                                      */
+/* Move specifiers: Mx                                                  */
+/* u --> pick up                                                        */
+/* d --> place                                                          */
+/* c --> close lid                                                      */
+/* s --> stamp                                                          */
+/* i --> ink stamp                                                      */
+/*                                                                      */
+/* Tool specifiers: Tx                                                  */
+/* 1 --> pick n place tool                                              */
+/* 2 --> stamp tool                                                     */
+/*                                                                      */
+/* f --> Force in mN, followed by a number of 5 digits     TX Only      */
+/*                                                                      */
+/* S --> State, followed by specifier                      TX Only      */
+/*                                                                      */
+/* State specifiers: Sx                                                 */
+/* a --> acknowledge command                                            */
+/* b --> busy, can't process command                                    */
+/* u --> unknown, command is not known                                  */
+/* s --> success, command successfully fullfiled                        */
+/*                                                                      */
+/************************************************************************/
+
+#include "plc_com.h"
 
 int plc_com_plc_to_state() {
 	/* Converts the PLC commands to predefined states. If the command is unknown a unknown message is send to the PLC. */
@@ -26,7 +52,7 @@ int plc_com_send_cmd() {
 	 * Returns 1 on success and 0 on error.*/
 }
 
-int plc_com_receive_cmd() {
+void plc_com_receive_callback() {
 	/* Callback function for receiving messages from the PLC. Takes the message and converts it via plc_com_plc_to_state to predefined state which is then used to switch the state of the machine.
 	 * Returns the state*/
 }

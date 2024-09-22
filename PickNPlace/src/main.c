@@ -7,17 +7,19 @@
 
 /**
  * Main function with loop. Here just the state machine is implemented, all the other functionality is handled in dedicated functions.
- * Also the callback for incoming usart com from the PLC is register in this file.
+ * Also the callback for incoming usart com from the PLC is registered in this file.
  *
  */
 
 #include "main.h"
 #include "drv_ctrl.h"
 #include "rprintf.h"
+#include "plc_com.h"
 
 struct spi_module spi_master_instance;
 struct spi_slave_inst spi_motor_controller;
 struct adc_module adc_instance;
+struct usart_module usart_instance;
 
 static void configure_spi_master(void){
 	struct spi_config config_spi_master;
@@ -95,7 +97,7 @@ static void configure_pinmux(void){
 	/** TODO: Check if ADC_REFA has to be muxed */
 }
 
-static void configure_adc(void)
+static void configure_adc(void) //Check to add calibration
 {
 	struct adc_config config_adc;
 	adc_get_config_defaults(&config_adc);
@@ -104,6 +106,35 @@ static void configure_adc(void)
 	config_adc.reference = ADC_REFERENCE_AREFA;
 	adc_init(&adc_instance, ADC, &config_adc);
 	adc_enable(&adc_instance);
+}
+
+static void configure_usart(void){
+	struct usart_config config_usart;
+	usart_get_config_defaults(&config_usart);
+	
+	config_usart.baudrate = 9600;
+	config_usart.mux_setting = EDBG_CDC_SERCOM_MUX_SETTING;
+	config_usart.pinmux_pad0 = EDBG_CDC_SERCOM_PINMUX_PAD0;
+	config_usart.pinmux_pad1 = EDBG_CDC_SERCOM_PINMUX_PAD1;
+	config_usart.pinmux_pad2 = EDBG_CDC_SERCOM_PINMUX_PAD2;
+	config_usart.pinmux_pad3 = EDBG_CDC_SERCOM_PINMUX_PAD3;
+	
+	while(usart_init(&usart_instance, EDBG_CDC_MODULE, &config_usart) != STATUS_OK){
+		//Wait untill initialized
+	}
+	
+	usart_enable(&usart_instance);
+	
+	usart_enable_transceiver(&usart_instance, USART_TRANSCEIVER_TX);
+	usart_enable_transceiver(&usart_instance, USART_TRANSCEIVER_RX);
+}
+
+static void configure_usart_callbacks(void){
+	
+	usart_register_callback(&usart_instance,
+	        plc_com_receive_callback, USART_CALLBACK_BUFFER_RECEIVED);
+			
+	usart_enable_callback(&usart_instance, USART_CALLBACK_BUFFER_RECEIVED);
 }
 
 
@@ -117,6 +148,8 @@ int main (void)
     configure_spi_master();
 	configure_stepper_motor();
 	configure_adc();
+	configure_usart();
+	configure_usart_callbacks();
 	
 	while (1) {
 		

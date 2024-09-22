@@ -5,13 +5,7 @@
  *  Author: floro
  */ 
 
-/* In this file the forcesensor readout is implemented. */
-
-/* Todo: implement the following functions:
-- read force via ADC and to conversion
-- return the actual forcevalue in newton
-- return the actual forcebalue in gramm
-*/
+/* In this file the force sensor readout is implemented. */
 
 #include "force_sense.h"
 
@@ -19,7 +13,7 @@ static uint16_t force_sense_last_readout;
 static uint16_t force_sense_zero_value;
 
     /* Reads the voltage from the INA via ADC, save the raw value in memory. Returns 1 on success and 0 on error*/
-static int force_sense_read_sense() {
+static int force_sense_read_sense(void) {
 	
 	adc_start_conversion(&adc_instance);
 	
@@ -41,10 +35,21 @@ int force_sense_calibrate() {
 	return EXIT_SUCCESS;
 }
 
-int force_sense_get_newton() {
-	/* Trigger a force sensor reading and converts the value to newton and returns it. */
+    /* Trigger a force sensor reading and converts the value to millinewton and returns it. */
+int16_t force_sense_get_millinewton() {
+	
+	force_sense_read_sense();
+	int16_t force_mN = (force_sense_last_readout - force_sense_zero_value) / FORCE_SENSE_mN_PER_COUNT;
+	
+	return force_mN;
 }
 
-int force_sense_get_gramm() {
-	/* Trigger a force sensor reading and converts the value to gram then returns it. */
+
+    /* Trigger a force sensor reading and converts the value to gram then returns it. */
+int16_t force_sense_get_gramm() {
+	
+	force_sense_read_sense();
+	int16_t force_g = (force_sense_last_readout - force_sense_zero_value) / FORCE_SENSE_g_PER_COUNT;
+	
+	return force_g;
 }
