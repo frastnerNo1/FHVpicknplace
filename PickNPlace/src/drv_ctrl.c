@@ -15,9 +15,6 @@
 - return actual position
 */
 
-#include <asf.h>
-#include <stdlib.h>
-#include "main.h"
 #include "drv_ctrl.h"
 
 static struct drv_config_struct drv_config;
@@ -30,10 +27,10 @@ static uint16_t actual_position_mm;
 static int drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 	
 	uint8_t transfer_data_buffer[] = {((adress << 4)|(data >> 8)), (data & 0xFF)};
-		
-	spi_select_slave(&spi_master_instance, &spi_motor_controller, true);
+	
+	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, true);
 	enum status_code response = spi_write_buffer_wait(&spi_master_instance, transfer_data_buffer, 2);
-	spi_select_slave(&spi_master_instance, &spi_motor_controller, false);
+	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, false);
 	
 	if(response == 0) {
 		return EXIT_SUCCESS;
@@ -46,14 +43,14 @@ static int drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
     /* Pure SPI read function, takes register adress as input and reads 16 bit of data then returns 
 	 * the date on success or 1 on failure. The first 4 bits are not relevant.
 	 */	
-static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
+uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 	
 	uint16_t dummy = ((adress << 4) | (1 << 7));
-	uint8_t data[2];
+	uint8_t data[2] ={0x00, 0x00};
 	
-	spi_select_slave(&spi_master_instance, &spi_motor_controller, true);
+	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, true);
 	enum status_code response = spi_read_buffer_wait(&spi_master_instance, data, 2, dummy);
-	spi_select_slave(&spi_master_instance, &spi_motor_controller, false);
+	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, false);
 	
 	if(response == 0) {
 		return ((data[0] << 4) | data[1]);
@@ -132,24 +129,17 @@ static void drv_ctrl_write_drive(void){
 }
 
     /* Initialize the stepper driver, drv_config_struct is defined in this file and exported in header. */
-int drv_ctrl_init(struct drv_config_struct * const config) {
+int drv_ctrl_init(struct drv_config_struct * const new_config) {
 	
-	drv_config = *config;
+	drv_config = *new_config;
 	
-	drv_ctrl_write_ctrl();
-			
-	drv_ctrl_write_torque();
-			
-    drv_ctrl_write_off();
-			
-	drv_ctrl_write_blank();
-			
-	drv_ctrl_write_decay();
-			
-	drv_ctrl_write_stall();
-			
-	drv_ctrl_write_drive();
-	
+	drv_ctrl_write_ctrl();			
+	drv_ctrl_write_torque();			
+    drv_ctrl_write_off();			
+	drv_ctrl_write_blank();			
+	drv_ctrl_write_decay();			
+	drv_ctrl_write_stall();			
+	drv_ctrl_write_drive();	
 			
 	return EXIT_SUCCESS;
 }
@@ -175,7 +165,7 @@ int drv_ctrl_home() {
 }
 
     /* Move to position, takes target position as input in mm from top. Check also for out of range position.
-	 * when move is complete set new position. Returns 1 on success and 0 on failure.
+	 * when move is complete set new position. Returns 1 on success and 0 on failure. This function is blocking!!
 	 */
 int drv_ctrl_moveto(uint16_t position_mm) {
 	
@@ -189,9 +179,9 @@ int drv_ctrl_moveto(uint16_t position_mm) {
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
 	for(int i = 0; i <= steps; i++){
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_ms(10);
+		delay_us(STEPPER_PULSE_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_ms(20);
+		delay_us(STEPPER_PULSE_PERIOD_us);
 	}
 	
 	actual_position_mm = position_mm;
@@ -205,6 +195,9 @@ int drv_ctrl_move_till_force(uint8_t force_mN) {
 	 * when defined force is reached the drive will stop. Returns 1 on success and 0 an failure*/
 }
 
-uint16_t drv_ctrl_getpos() {
 	/*Returns the actual position of the Z-Axis in mm from top.*/
+uint16_t drv_ctrl_getpos() {
+	
+	return actual_position_mm;
+	
 }

@@ -24,6 +24,10 @@ src\force_sense.c
 
 src\plc_com.c
 
+src\rprintf.c
+
+src\rscanf.c
+
 src\z_axis.c
 
 src\ASF\common\utils\interrupt\interrupt_sam_nvic.c

@@ -9,7 +9,7 @@
 #ifndef DRV_CTRL_H_
 #define DRV_CTRL_H_
 
-#include <stdbool.h>
+#include "main.h"
 
 #define CTRL_REG        0x00
 #define TORQUE_REG      0x01
@@ -34,9 +34,9 @@
 	
 	enum drv_mode {
 		/** Full-step*/
-		DRV_MODE_FULL          = (0b0000 << 3),
+		DRV_MODE_1          = (0b0000 << 3),
 		/** Half-step*/
-		DRV_MODE_HALF          = (0b0001 << 3),
+		DRV_MODE_1_2          = (0b0001 << 3),
 		/** 1/4 step*/
 		DRV_MODE_1_4           = (0b0010 << 3),
 		/** 1/8 step*/
@@ -165,7 +165,7 @@ struct drv_config_struct {
 	
 	enum drv_en enable;
 	
-	bool step;
+	bool drv_step;
 	
 	/*CTRL_RDIR*/
 	enum drv_rdir direction_set;
@@ -219,6 +219,8 @@ struct drv_config_struct {
 	enum drv_idrivep hs_current;
 	
 	};
+	
+uint16_t drv_ctrl_read_cmd(uint8_t adress);
 
 int drv_ctrl_init(struct drv_config_struct *);
 

@@ -737,6 +737,18 @@
     <Compile Include="src\plc_com.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\rprintf.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\rprintf.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\rscanf.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\rscanf.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\z_axis.c">
       <SubType>compile</SubType>
     </Compile>

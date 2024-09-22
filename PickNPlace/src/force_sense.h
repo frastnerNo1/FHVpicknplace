@@ -9,8 +9,7 @@
 #ifndef FORCE_SENSE_H_
 #define FORCE_SENSE_H_
 
-
-
+#include "main.h"
 
 
 #endif /* FORCE_SENSE_H_ */
