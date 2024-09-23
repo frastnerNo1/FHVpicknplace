@@ -8,6 +8,7 @@
 /* In this file the force sensor readout is implemented. */
 
 #include "force_sense.h"
+#include "rprintf.h"
 
 static uint16_t force_sense_last_readout;
 static uint16_t force_sense_zero_value;
@@ -20,6 +21,8 @@ static int force_sense_read_sense(void) {
 	while(adc_read(&adc_instance, &force_sense_last_readout) == STATUS_BUSY){
 		//Wait till conversion is finished
 	}
+	
+	rprintf("%d \n\r", force_sense_last_readout);
 	
 	return EXIT_SUCCESS;
 }

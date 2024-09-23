@@ -15,6 +15,7 @@
 #include "drv_ctrl.h"
 #include "rprintf.h"
 #include "plc_com.h"
+#include "force_sense.h"
 
 struct spi_module spi_master_instance;
 struct spi_slave_inst spi_motor_controller;
@@ -46,7 +47,7 @@ static void configure_stepper_motor(void) {
 	struct drv_config_struct stepper_motor_config;
 	
 	stepper_motor_config.direction_set = DRV_DIRPIN;
-	stepper_motor_config.step_mode = DRV_MODE_1_4;
+	stepper_motor_config.step_mode = DRV_MODE_1_2;
 	stepper_motor_config.stall_detect = DRV_EXSTALL_INTERNAL;
 	stepper_motor_config.isense_gain = DRV_ISGAIN_40;
 	stepper_motor_config.dead_time_insert = DRV_DTIME_850ns; //Check if change is needed
@@ -86,16 +87,6 @@ static void configure_port_pins(void)
 	port_pin_set_config(MOTOR_CONTROLLER_SS_PIN, &config_port_pin);
 }
 
-static void configure_pinmux(void){
-	
-	struct system_pinmux_config config_pinmux;
-	system_pinmux_get_config_defaults(&config_pinmux);
-	config_pinmux.input_pull = SYSTEM_PINMUX_PIN_PULL_UP;
-	
-	system_pinmux_pin_set_config(EXT1_PIN_17, &config_pinmux);
-	
-	/** TODO: Check if ADC_REFA has to be muxed */
-}
 
 static void configure_adc(void) //Check to add calibration
 {
@@ -113,14 +104,15 @@ static void configure_usart(void){
 	usart_get_config_defaults(&config_usart);
 	
 	config_usart.baudrate = 9600;
-	config_usart.mux_setting = EDBG_CDC_SERCOM_MUX_SETTING;
-	config_usart.pinmux_pad0 = EDBG_CDC_SERCOM_PINMUX_PAD0;
-	config_usart.pinmux_pad1 = EDBG_CDC_SERCOM_PINMUX_PAD1;
-	config_usart.pinmux_pad2 = EDBG_CDC_SERCOM_PINMUX_PAD2;
-	config_usart.pinmux_pad3 = EDBG_CDC_SERCOM_PINMUX_PAD3;
+	config_usart.mux_setting = EXT1_UART_SERCOM_MUX_SETTING;
+	config_usart.pinmux_pad0 = EXT1_UART_SERCOM_PINMUX_PAD0;
+	config_usart.pinmux_pad1 = EXT1_UART_SERCOM_PINMUX_PAD1;
+	config_usart.pinmux_pad2 = EXT1_UART_SERCOM_PINMUX_PAD2;
+	config_usart.pinmux_pad3 = EXT1_UART_SERCOM_PINMUX_PAD3;
 	
-	while(usart_init(&usart_instance, EDBG_CDC_MODULE, &config_usart) != STATUS_OK){
-		//Wait untill initialized
+	while(usart_init(&usart_instance, EXT1_UART_MODULE, &config_usart) != STATUS_OK){
+		delay_ms(1000);
+		rprintf("Wait");
 	}
 	
 	usart_enable(&usart_instance);
@@ -144,18 +136,21 @@ int main (void)
 	delay_init();
 	rprintf_init();
 	configure_port_pins();
-	configure_pinmux();
     configure_spi_master();
 	configure_stepper_motor();
 	configure_adc();
 	configure_usart();
 	configure_usart_callbacks();
+	force_sense_calibrate();
+	system_interrupt_enable_global();
+	
+	uint16_t rx_buffer[2];
 	
 	while (1) {
 		
-		rprintf("Reg value: \n\r");
-		uint16_t reg = drv_ctrl_read_cmd(0x01);
-		rprintf("%x \n\r", reg);
+		//uint8_t string[] = "Running!\r\n";
+		//usart_write_buffer_job(&usart_instance, string, sizeof(string));
+		usart_read_buffer_job(&usart_instance, rx_buffer, 2);
 		drv_ctrl_moveto(10);
 		drv_ctrl_moveto(0);
 		delay_ms(1000);

@@ -27,11 +27,11 @@
 #define DIRECTION_UP                    true
 #define DIRECTION_DOWN                  !DIRECTION_UP
 
-#define STEPPER_PULSE_PERIOD_us         100
+#define STEPPER_PULSE_PERIOD_us         500
 
 #define Z_AXIS_MAX_TRAVEL               100
 #define Z_AXIS_MM_PER_REV               10
-#define Z_AXIS_MICROSTEPS               8
+#define Z_AXIS_MICROSTEPS               2
 
 #define Z_AXIS_STEPS_PER_REV            (200 * Z_AXIS_MICROSTEPS)
 #define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)

@@ -38,6 +38,7 @@
 /************************************************************************/
 
 #include "plc_com.h"
+#include "rprintf.h"
 
 int plc_com_plc_to_state() {
 	/* Converts the PLC commands to predefined states. If the command is unknown a unknown message is send to the PLC. */
@@ -53,7 +54,7 @@ int plc_com_send_cmd() {
 }
 
 void plc_com_receive_callback() {
-	/* Callback function for receiving messages from the PLC. Takes the message and converts it via plc_com_plc_to_state to predefined state which is then used to switch the state of the machine.
-	 * Returns the state*/
+	
+	rprintf("Callback fired!");
 }
 
