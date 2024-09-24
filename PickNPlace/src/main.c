@@ -16,6 +16,7 @@
 #include "rprintf.h"
 #include "plc_com.h"
 #include "force_sense.h"
+#include "stepper_music.h"
 
 struct spi_module spi_master_instance;
 struct spi_slave_inst spi_motor_controller;
@@ -143,6 +144,9 @@ enum system_states get_state(void) {
 	
 }
 
+uint16_t notelist1[] = {1000, 2000, 3000, 4000, 5000, 6000, 7000, 5000, 5000, 7000, 12000, 10000, 5000}; 
+ 
+
 
 int main (void)
 {
@@ -162,9 +166,7 @@ int main (void)
 	
 	while (1) {
 		
-		drv_ctrl_moveto(10);
-		drv_ctrl_moveto(0);
-		delay_ms(1000);
+		play_music(notelist1);
 		
 	}
 }

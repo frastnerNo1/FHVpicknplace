@@ -39,6 +39,8 @@
 #define FORCE_SENSE_mN_PER_COUNT        10
 #define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)
 
+#define ARRAY_LENGTH(x) (sizeof(x) / sizeof((x)[0]))
+
 enum system_states {
 	idle,
 	busy,
