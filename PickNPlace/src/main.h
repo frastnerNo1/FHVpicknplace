@@ -37,11 +37,29 @@
 #define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)
 
 #define FORCE_SENSE_mN_PER_COUNT        10
-#define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)      
+#define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)
+
+enum system_states {
+	idle,
+	busy,
+	init,
+	pick,
+	place,
+	get_tool,
+	drop_tool,
+	stamp,
+	soak,
+	close_lid,
+	get_force
+	};    
 
 extern struct spi_module spi_master_instance;
 extern struct spi_slave_inst spi_motor_controller;
 extern struct adc_module adc_instance;
 extern struct usart_module usart_instance;
+
+void set_state(enum system_states);
+
+enum system_states get_state(void);
 
 #endif /* MAIN_H_ */

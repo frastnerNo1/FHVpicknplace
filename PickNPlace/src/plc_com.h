@@ -11,6 +11,10 @@
 
 #include "main.h"
 
+void plc_com_success(void);
+
 void plc_com_receive_callback(void);
+
+void plc_com_arm_receiver(void);
 
 #endif /* PLC_COM_H_ */

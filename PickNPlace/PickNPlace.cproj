@@ -749,6 +749,12 @@
     <Compile Include="src\rscanf.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\stepper_music.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\stepper_music.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\z_axis.c">
       <SubType>compile</SubType>
     </Compile>

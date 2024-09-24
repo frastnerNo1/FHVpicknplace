@@ -22,6 +22,8 @@ struct spi_slave_inst spi_motor_controller;
 struct adc_module adc_instance;
 struct usart_module usart_instance;
 
+static enum system_states system_state;
+
 static void configure_spi_master(void){
 	struct spi_config config_spi_master;
 	struct spi_slave_inst_config motor_controller_config;
@@ -129,6 +131,18 @@ static void configure_usart_callbacks(void){
 	usart_enable_callback(&usart_instance, USART_CALLBACK_BUFFER_RECEIVED);
 }
 
+void set_state(enum system_states new_state) {
+	
+	system_state = new_state;
+	
+}
+
+enum system_states get_state(void) {
+	
+	return system_state;
+	
+}
+
 
 int main (void)
 {
@@ -144,13 +158,10 @@ int main (void)
 	force_sense_calibrate();
 	system_interrupt_enable_global();
 	
-	uint16_t rx_buffer[2];
+	plc_com_arm_receiver();
 	
 	while (1) {
 		
-		//uint8_t string[] = "Running!\r\n";
-		//usart_write_buffer_job(&usart_instance, string, sizeof(string));
-		usart_read_buffer_job(&usart_instance, rx_buffer, 2);
 		drv_ctrl_moveto(10);
 		drv_ctrl_moveto(0);
 		delay_ms(1000);
