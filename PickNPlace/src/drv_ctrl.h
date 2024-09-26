@@ -11,6 +11,22 @@
 
 #include "main.h"
 
+#define DIRECTION_UP                    true
+#define DIRECTION_DOWN                  !DIRECTION_UP
+
+#define STEPPER_PULSE_PERIOD_us         500
+#define STEPPER_PULSE_SLOW_PERIOD_us    3000
+
+#define Z_AXIS_MAX_TRAVEL               100
+#define Z_AXIS_MM_PER_REV               10
+#define Z_AXIS_MICROSTEPS               4
+
+#define Z_AXIS_STEPS_PER_REV            (200 * Z_AXIS_MICROSTEPS)
+#define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)
+
+
+/* Registers of DRV8711 */
+
 #define CTRL_REG        0x00
 #define TORQUE_REG      0x01
 #define OFF_REG         0x02

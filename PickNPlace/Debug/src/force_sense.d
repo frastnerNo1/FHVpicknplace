@@ -128,8 +128,7 @@ src/force_sense.d src/force_sense.o: ../src/force_sense.c \
  ../src/ASF/sam0/drivers/sercom/usart/usart.h \
  ../src/ASF/sam0/drivers/tc/tc.h \
  ../src/ASF/common/services/serial/serial.h \
- ../src/ASF/common/services/serial/sam0_usart/usart_serial.h \
- ../src/rprintf.h
+ ../src/ASF/common/services/serial/sam0_usart/usart_serial.h
 
 ../src/force_sense.h:
 
@@ -402,5 +401,3 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\arm-no
 ../src/ASF/common/services/serial/serial.h:
 
 ../src/ASF/common/services/serial/sam0_usart/usart_serial.h:
-
-../src/rprintf.h:

@@ -11,8 +11,10 @@
 
 #include "main.h"
 
+#define FORCE_SENSE_mN_PER_COUNT        10
+#define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)
 
-int force_sense_calibrate(void);
+void force_sense_calibrate(void);
 
 int16_t force_sense_get_millinewton(void);
 

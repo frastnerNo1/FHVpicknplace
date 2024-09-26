@@ -1,5 +1,6 @@
-src/z_axis.d src/z_axis.o: ../src/z_axis.c ../src/main.h ../src/asf.h \
- ../src/ASF/sam0/drivers/adc/adc.h ../src/ASF/sam0/utils/compiler.h \
+src/z_axis.d src/z_axis.o: ../src/z_axis.c ../src/z_axis.h ../src/main.h \
+ ../src/asf.h ../src/ASF/sam0/drivers/adc/adc.h \
+ ../src/ASF/sam0/utils/compiler.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\lib\gcc\arm-none-eabi\6.3.1\include\stddef.h \
  ../src/ASF/common/utils/parts.h ../src/ASF/sam0/utils/status_codes.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\lib\gcc\arm-none-eabi\6.3.1\include\stdint.h \
@@ -128,7 +129,9 @@ src/z_axis.d src/z_axis.o: ../src/z_axis.c ../src/main.h ../src/asf.h \
  ../src/ASF/sam0/drivers/tc/tc.h \
  ../src/ASF/common/services/serial/serial.h \
  ../src/ASF/common/services/serial/sam0_usart/usart_serial.h \
- ../src/z_axis.h ../src/force_sense.h ../src/drv_ctrl.h
+ ../src/force_sense.h ../src/drv_ctrl.h ../src/plc_com.h
+
+../src/z_axis.h:
 
 ../src/main.h:
 
@@ -400,8 +403,8 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\arm-no
 
 ../src/ASF/common/services/serial/sam0_usart/usart_serial.h:
 
-../src/z_axis.h:
-
 ../src/force_sense.h:
 
 ../src/drv_ctrl.h:
+
+../src/plc_com.h:

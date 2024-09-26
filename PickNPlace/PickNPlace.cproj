@@ -743,12 +743,6 @@
     <Compile Include="src\rprintf.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\rscanf.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\rscanf.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="src\stepper_music.c">
       <SubType>compile</SubType>
     </Compile>

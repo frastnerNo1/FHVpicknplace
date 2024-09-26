@@ -11,7 +11,15 @@
 
 #include "main.h"
 
+enum errorCodes {
+	e_not_init      = '1',
+	e_wrong_tool    = '2',
+	e_general_error = '0'
+};
+
 void plc_com_success(void);
+
+void plc_com_error(enum errorCodes);
 
 void plc_com_transmit_force(int16_t);
 

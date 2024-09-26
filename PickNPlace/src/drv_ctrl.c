@@ -20,25 +20,20 @@
 
 enum direction {up = DIRECTION_UP, down = DIRECTION_DOWN};
 
-static struct drv_config_struct drv_config;
-static uint32_t actual_position_steps;
+static struct drv_config_struct sDrvConfig;
+
+static uint32_t sActualPositionSteps;
 
     /* Pure SPI write function, takes register and data as input and send it to the stepper controller via SPI.
 	 * Returns 0 on success and 1 on failure.
 	 */
-static int drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
+static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 	
 	uint8_t transfer_data_buffer[] = {((adress << 4)|(data >> 8)), (data & 0xFF)};
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, true);
-	enum status_code response = spi_write_buffer_wait(&spi_master_instance, transfer_data_buffer, 2);
+	spi_write_buffer_wait(&gSpiMasterInstance, transfer_data_buffer, 2);
 	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, false);
-	
-	if(response == 0) {
-		return EXIT_SUCCESS;
-	} else {
-		return EXIT_FAILURE;
-	}
 }
 
 
@@ -51,7 +46,7 @@ static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 	uint8_t data[2] ={0x00, 0x00};
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, true);
-	enum status_code response = spi_read_buffer_wait(&spi_master_instance, data, 2, dummy);
+	enum status_code response = spi_read_buffer_wait(&gSpiMasterInstance, data, 2, dummy);
 	port_pin_set_output_level(MOTOR_CONTROLLER_SS_PIN, false);
 	
 	if(response == 0) {
@@ -68,72 +63,72 @@ static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 static void drv_ctrl_write_ctrl(void){
 	
 	drv_ctrl_write_cmd(CTRL_REG,
-	drv_config.direction_set |
-	drv_config.enable |
-	drv_config.step_mode |
-	drv_config.stall_detect |
-	drv_config.isense_gain |
-	drv_config.dead_time_insert);
+	sDrvConfig.direction_set |
+	sDrvConfig.enable |
+	sDrvConfig.step_mode |
+	sDrvConfig.stall_detect |
+	sDrvConfig.isense_gain |
+	sDrvConfig.dead_time_insert);
 	
 }
 
 static void drv_ctrl_write_torque(void){
 	
 	drv_ctrl_write_cmd(TORQUE_REG,
-	drv_config.drv_torque |
-	drv_config.backemf_sample_th);
+	sDrvConfig.drv_torque |
+	sDrvConfig.backemf_sample_th);
 	
 }
 
 static void drv_ctrl_write_off(void){
 	
     drv_ctrl_write_cmd(OFF_REG,
-    drv_config.drv_toff |
-    drv_config.pwm_mode);
+    sDrvConfig.drv_toff |
+    sDrvConfig.pwm_mode);
 	
 }
 
 static void drv_ctrl_write_blank(void){
 	
 	drv_ctrl_write_cmd(BLANK_REG,
-	drv_config.drv_tblank |
-	drv_config.adaptive_blanking_time);
+	sDrvConfig.drv_tblank |
+	sDrvConfig.adaptive_blanking_time);
 	
 }
 
 static void drv_ctrl_write_decay(void){
 	
 	drv_ctrl_write_cmd(DECAY_REG,
-	drv_config.drv_tdecay |
-	drv_config.decay_mode);
+	sDrvConfig.drv_tdecay |
+	sDrvConfig.decay_mode);
 	
 }
 
 static void drv_ctrl_write_stall(void){
 	
 	drv_ctrl_write_cmd(STALL_REG,
-	drv_config.drv_sdthr |
-	drv_config.stall_count |
-	drv_config.back_emf_div);
+	sDrvConfig.drv_sdthr |
+	sDrvConfig.stall_count |
+	sDrvConfig.back_emf_div);
 	
 }
 
 static void drv_ctrl_write_drive(void){
 	
 	drv_ctrl_write_cmd(DRIVE_REG,
-	drv_config.ocp_threshold |
-	drv_config.ocp_threshold |
-	drv_config.ls_drive_time |
-	drv_config.hs_drive_time |
-	drv_config.ls_current |
-	drv_config.hs_current);
+	sDrvConfig.ocp_threshold |
+	sDrvConfig.ocp_threshold |
+	sDrvConfig.ls_drive_time |
+	sDrvConfig.hs_drive_time |
+	sDrvConfig.ls_current |
+	sDrvConfig.hs_current);
 	
 }
 
     /* Initialize the stepper driver, drv_config_struct is defined in this file and exported in header. */
 void drv_ctrl_init(struct drv_config_struct * const new_config) {
 	
-	drv_config = *new_config;
+	sDrvConfig = *new_config;
 	
 	drv_ctrl_write_ctrl();			
 	drv_ctrl_write_torque();			
@@ -146,19 +141,19 @@ void drv_ctrl_init(struct drv_config_struct * const new_config) {
 
 void drv_ctrl_enable(){
 	
-	drv_config.enable = DRV_ENABLE;
+	sDrvConfig.enable = DRV_ENABLE;
 	drv_ctrl_write_ctrl();
 }
 
 void drv_ctrl_disable(){
 	
-	drv_config.enable = DRV_DISABLE;
+	sDrvConfig.enable = DRV_DISABLE;
 	drv_ctrl_write_ctrl();
 }
 
 void drv_ctrl_set_microsteps(uint8_t steps) {
 	
-	drv_config.step_mode = steps;
+	sDrvConfig.step_mode = steps;
 	drv_ctrl_write_ctrl();
 }
 
@@ -177,7 +172,7 @@ void drv_ctrl_home() {
 		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 	}
 	
-	actual_position_steps = 0;
+	sActualPositionSteps = 0;
 		
 }
 
@@ -192,18 +187,18 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	
 	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM;
 	
-	enum direction dir = (actual_position_steps > target_steps) ? up : down;
-	uint32_t steps = abs(actual_position_steps - target_steps);
+	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
+	uint32_t steps = abs(sActualPositionSteps - target_steps);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
-	for(int i = 0; i <= steps; i++){
+	for(uint32_t i = 0; i <= steps; i++){
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
 		delay_us(STEPPER_PULSE_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
 		delay_us(STEPPER_PULSE_PERIOD_us);
 	}
 	
-	actual_position_steps = target_steps;	
+	sActualPositionSteps = target_steps;	
 }
 
 

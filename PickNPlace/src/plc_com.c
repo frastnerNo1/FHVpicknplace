@@ -37,8 +37,6 @@
 /************************************************************************/
 
 #include "plc_com.h"
-#include "main.h"
-#include "rprintf.h"
 
 const char EOT = 0x03;
 
@@ -47,7 +45,8 @@ enum states {
 	s_busy          = 'b',
 	s_unknown       = 'u',
 	s_success       = 's',
-	s_failed        = 'f'
+	s_failed        = 'f',
+	s_error         = 'e'
 	};
 	
 enum commands {
@@ -57,9 +56,9 @@ enum commands {
 	c_force = 'F'
 	};
 
-static uint16_t rx_buffer;
+static uint16_t sRxBuffer;
 
-static void plc_com_send_cmd(bool, enum states, uint16_t);
+static void plc_com_transmit_status(enum states, enum errorCodes);
 static void plc_com_plc_to_state(enum commands, uint8_t);
 
 
@@ -101,32 +100,24 @@ static void plc_com_plc_to_state(enum commands command, uint8_t specifier) {
 	}
 	
 	if(acknowledge == EXIT_SUCCESS) {
-		plc_com_send_cmd(false, s_acknowledge, 0);
+		plc_com_transmit_status(s_acknowledge, 0);
 	} else {
-		plc_com_send_cmd(false, s_failed, 0);
+		plc_com_transmit_status(s_error, 1);
+		set_state(idle);
 	}
 }
     
 
-static void plc_com_send_cmd(bool force_tx, enum states state, uint16_t force) {
+static void plc_com_transmit_status(enum states status, enum errorCodes code) {
+
+    uint8_t txBuffer[4];
 	
-	uint8_t tx_buffer[4];
-	uint16_t len;
-	
-	if(force_tx) {
-		len = 4;
-		tx_buffer[0] = 'F';
-		tx_buffer[1] = (force >> 8);
-		tx_buffer[2] = (force & 0xFF);
-		tx_buffer[3] = EOT;
-	} else {
-		len = 3;
-		tx_buffer[0] = 'S';
-		tx_buffer[1] = state;
-		tx_buffer[2] = EOT;
-	}
+	txBuffer[0] = 'S';
+	txBuffer[1] = status;
+	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = EOT);
+	txBuffer[3] = EOT;
 		
-	usart_write_buffer_wait(&usart_instance, tx_buffer, len);
+	usart_write_buffer_wait(&gUsartInstance, txBuffer, 3);
 }
 
 	/*
@@ -134,102 +125,121 @@ static void plc_com_send_cmd(bool force_tx, enum states state, uint16_t force) {
 	 */
 void plc_com_success() {
 	
-	plc_com_send_cmd(false, s_success, 0);
+	plc_com_transmit_status(s_success, 0);
+	set_state(idle);
 	
+}
+
+	/*
+	 * Returns error message to PLC.
+	 */
+void plc_com_error(enum errorCodes code) {
+	
+	plc_com_transmit_status(s_error, code);
+	set_state(idle);
 }
 
     /*
 	 * Returns the force value to the PLC.
 	 */
 void plc_com_transmit_force(int16_t force) {
-	plc_com_send_cmd(true, s_success, force);
+	
+	uint8_t txBuffer[4];
+	
+	txBuffer[0] = 'F';
+	txBuffer[1] = (force >> 8);
+	txBuffer[2] = (force & 0xFF);
+	txBuffer[3] = EOT;
+	
+	usart_write_buffer_wait(&gUsartInstance, txBuffer, 4);
 }
 
 void plc_com_arm_receiver() {
 	
-	usart_read_job(&usart_instance, &rx_buffer);
+	usart_read_job(&gUsartInstance, &sRxBuffer);
 }
 
 void plc_com_receive_callback() {
 	
-	static uint8_t symbol_counter = 0;
+	static uint8_t sSymbolCounter = 0;
 	static enum commands command;
 	static uint8_t specifier;
-	static bool await_eot = false;
+	static bool awaitEot = false;
 	
-	if(get_state() != idle || get_state() != start) {
-		plc_com_send_cmd(false, s_busy, 0);
+	if(get_state() != idle && get_state() != start) {
+		plc_com_transmit_status(s_busy, 0);
 		plc_com_arm_receiver();
 		return;
 	}
 	
-	if(symbol_counter == 0) {
+	if(sSymbolCounter == 0) {
 		command = 0;
 		specifier = 0;
 	}
 	
-	if(((rx_buffer == EOT) != await_eot) || symbol_counter > 2 ) {
-		plc_com_send_cmd(false, s_unknown, 0);
-		symbol_counter = 0;
+	if(((sRxBuffer == EOT) != awaitEot) || sSymbolCounter > 2 ) {
+		plc_com_transmit_status(s_unknown, 0);
+		sSymbolCounter = 0;
 		plc_com_arm_receiver();
 		return;
 	}
 	
-	if(rx_buffer == EOT) {
+	if(sRxBuffer == EOT) {
 		set_state(busy);
 		plc_com_plc_to_state(command, specifier);
-		symbol_counter = 0;
-		await_eot = false;
+		sSymbolCounter = 0;
+		awaitEot = false;
 		plc_com_arm_receiver();
 		return;
 	}
 	
-	if(symbol_counter == 0) {
-	    switch(rx_buffer) {
+	if(sSymbolCounter == 0) {
+	    switch(sRxBuffer) {
 		    case('I'):
 			    command = c_init;
-				await_eot = true;
+				awaitEot = true;
 				break;
 			case('M'):
 			    command = c_move;
-				await_eot = false;
+				awaitEot = false;
 				break;
 			case('T'):
 			    command = c_tool;
-				await_eot = true;
+				awaitEot = true;
 				break;
 			case('F'):
 			    command = c_force;
-				await_eot = true;
+				awaitEot = true;
 				break;
 			default:
-			    plc_com_send_cmd(false, s_unknown, 0);
-				symbol_counter = 0;
+			    plc_com_transmit_status(s_unknown, 0);
+				sSymbolCounter = 0;
 				plc_com_arm_receiver();
 				return;
 	    }
-		symbol_counter++;
+		sSymbolCounter++;
 		plc_com_arm_receiver();
 		return;
 	}
 	
-	if(symbol_counter == 1){
-		switch(rx_buffer) {
+	if(sSymbolCounter == 1){
+		switch(sRxBuffer) {
 			case('u'):
 			case('d'):
 			case('c'):
 			case('s'):
 			case('i'):
-			    specifier = rx_buffer;
+			    specifier = sRxBuffer;
 			    break;
 			default:
-				plc_com_send_cmd(false, s_unknown, 0);
-				symbol_counter = 0;
+				plc_com_transmit_status(s_unknown, 0);
+				sSymbolCounter = 0;
 				plc_com_arm_receiver();
 				return;
 		}
-		symbol_counter++;
-		await_eot = true;
+		sSymbolCounter++;
+		awaitEot = true;
+		plc_com_arm_receiver();
 		return;
 	}
 }

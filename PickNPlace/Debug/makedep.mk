@@ -26,8 +26,6 @@ src\plc_com.c
 
 src\rprintf.c
 
-src\rscanf.c
-
 src\stepper_music.c
 
 src\z_axis.c

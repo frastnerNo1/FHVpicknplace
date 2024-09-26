@@ -1,13 +1,17 @@
 /**
- * \file
+ * TITLE: FHVPickNPlace
+ * FOCUSPROJECT MECHATRONIC FHV
  *
- * \brief Empty user application template
+ * AUTOR: Florian Ronacher
+ * CREATED: 18.09.2024
+ * VERSION: 1.0
  *
  */
 
 /**
- * Main function with loop. Here just the state machine is implemented, all the other functionality is handled in dedicated functions.
- * Also the callback for incoming usart com from the PLC is registered in this file.
+ * MAIN: Config of the MCU is done here.
+ * State machine is implemented here, the switch is done based on the system_state, which is maintained by the setter function.
+ * Also the callback for incoming UART communication from the PLC is registered in this file.
  *
  */
 
@@ -17,13 +21,15 @@
 #include "force_sense.h"
 #include "z_axis.h"
 #include "stepper_music.h"
+#include "rprintf.h"
 
-struct spi_module spi_master_instance;
-struct spi_slave_inst spi_motor_controller;
-struct adc_module adc_instance;
-struct usart_module usart_instance;
+/* Global instances of the peripherals. */
+struct spi_module gSpiMasterInstance;
+struct spi_slave_inst gSpiMotorController;
+struct adc_module gAdcInstance;
+struct usart_module gUsartInstance;
 
-static enum system_states system_state;
+static enum system_states sSystemState;
 
 static void configure_spi_master(void){
 	struct spi_config config_spi_master;
@@ -31,7 +37,7 @@ static void configure_spi_master(void){
 	
 	spi_slave_inst_get_config_defaults(&motor_controller_config);
 	motor_controller_config.ss_pin = MOTOR_CONTROLLER_SS_PIN;
-	spi_attach_slave(&spi_motor_controller, &motor_controller_config);
+	spi_attach_slave(&gSpiMotorController, &motor_controller_config);
 	
 	spi_get_config_defaults(&config_spi_master);
 	config_spi_master.transfer_mode = SPI_TRANSFER_MODE_3;
@@ -41,16 +47,16 @@ static void configure_spi_master(void){
 	config_spi_master.pinmux_pad1 = PINMUX_UNUSED;
 	config_spi_master.pinmux_pad2 = EXT1_SPI_SERCOM_PINMUX_PAD2;
 	config_spi_master.pinmux_pad3 = EXT1_SPI_SERCOM_PINMUX_PAD3;
-	spi_init(&spi_master_instance, EXT1_SPI_MODULE, &config_spi_master);
+	spi_init(&gSpiMasterInstance, EXT1_SPI_MODULE, &config_spi_master);
 	
-	spi_enable(&spi_master_instance);
+	spi_enable(&gSpiMasterInstance);
 }
 
 static void configure_stepper_motor(void) {
 	struct drv_config_struct stepper_motor_config;
 	
 	stepper_motor_config.direction_set = DRV_DIRPIN;
-	stepper_motor_config.step_mode = DRV_MODE_1_2;
+	stepper_motor_config.step_mode = DRV_MODE_1_4;
 	stepper_motor_config.stall_detect = DRV_EXSTALL_INTERNAL;
 	stepper_motor_config.isense_gain = DRV_ISGAIN_40;
 	stepper_motor_config.dead_time_insert = DRV_DTIME_850ns; //Check if change is needed
@@ -69,7 +75,7 @@ static void configure_stepper_motor(void) {
 	stepper_motor_config.ls_current = DRV_IDRIVEN_100mA;
 	stepper_motor_config.hs_current = DRV_IDRIVEP_100mA;
 	
-	/* Following 3 lines are for stall detection which is not in use*/
+	/* Following 3 lines are for stall detection which is currently not in use*/
 	stepper_motor_config.drv_sdthr = 0x40; //Check if change is needed
 	stepper_motor_config.stall_count = DRV_SDCNT_4; //Check if change is needed
 	stepper_motor_config.back_emf_div = DRV_VDIV_32;
@@ -91,18 +97,19 @@ static void configure_port_pins(void)
 	port_pin_set_config(MAGNET_SWITCH_PIN, &config_port_pin);
 	config_port_pin.direction = PORT_PIN_DIR_INPUT;
 	config_port_pin.input_pull = PORT_PIN_PULL_UP;
+	port_pin_set_config(Z_AXIS_ZERO_SWITCH_PIN, &config_port_pin);
 }
 
 
-static void configure_adc(void) //Check to add calibration
+static void configure_adc(void) // TODO: Check  if calibration is needed
 {
 	struct adc_config config_adc;
 	adc_get_config_defaults(&config_adc);
 	config_adc.negative_input = ADC_NEGATIVE_INPUT_GND; //Maybe change to external GND Pin
 	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN0;
 	config_adc.reference = ADC_REFERENCE_AREFA;
-	adc_init(&adc_instance, ADC, &config_adc);
-	adc_enable(&adc_instance);
+	adc_init(&gAdcInstance, ADC, &config_adc);
+	adc_enable(&gAdcInstance);
 }
 
 static void configure_usart(void){
@@ -116,37 +123,37 @@ static void configure_usart(void){
 	config_usart.pinmux_pad2 = EXT1_UART_SERCOM_PINMUX_PAD2;
 	config_usart.pinmux_pad3 = EXT1_UART_SERCOM_PINMUX_PAD3;
 	
-	while(usart_init(&usart_instance, EXT1_UART_MODULE, &config_usart) != STATUS_OK){
+	while(usart_init(&gUsartInstance, EXT1_UART_MODULE, &config_usart) != STATUS_OK){
 		delay_ms(1000);
 	}
 	
-	usart_enable(&usart_instance);
+	usart_enable(&gUsartInstance);
 	
-	usart_enable_transceiver(&usart_instance, USART_TRANSCEIVER_TX);
-	usart_enable_transceiver(&usart_instance, USART_TRANSCEIVER_RX);
+	usart_enable_transceiver(&gUsartInstance, USART_TRANSCEIVER_TX);
+	usart_enable_transceiver(&gUsartInstance, USART_TRANSCEIVER_RX);
 }
 
 static void configure_usart_callbacks(void){
 	
-	usart_register_callback(&usart_instance,
+	usart_register_callback(&gUsartInstance,
 	        plc_com_receive_callback, USART_CALLBACK_BUFFER_RECEIVED);
 			
-	usart_enable_callback(&usart_instance, USART_CALLBACK_BUFFER_RECEIVED);
+	usart_enable_callback(&gUsartInstance, USART_CALLBACK_BUFFER_RECEIVED);
 }
 
 int set_state(enum system_states new_state) {
 	
-	if(system_state == start && new_state != init){
+	if(sSystemState == start && new_state != init){
 		return EXIT_FAILURE;
 	} else {
-		system_state = new_state;
+		sSystemState = new_state;
 		return EXIT_SUCCESS;
 	}
 }
 
 enum system_states get_state(void) {
 	
-	return system_state;
+	return sSystemState;
 	
 }
 
@@ -155,6 +162,7 @@ int main (void)
 {
 	system_init();
 	delay_init();
+	rprintf_init();
 	configure_port_pins();
     configure_spi_master();
 	configure_stepper_motor();
@@ -163,13 +171,16 @@ int main (void)
 	configure_usart_callbacks();
 	system_interrupt_enable_global();
 	
-	system_state = start;
+	sSystemState = start;
 	
 	plc_com_arm_receiver();
 	
 	while (1) {
 		
-		switch(system_state) {
+		if(sSystemState == init) {
+			rprintf("INIT");
+		}
+		switch(sSystemState) {
 			case(start):
 			case(idle):
 			case(busy):
@@ -202,7 +213,6 @@ int main (void)
 				break;
 			case(success):
 			    plc_com_success();
-				set_state(idle);
 				break;
 		}
 	}

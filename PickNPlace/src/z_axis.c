@@ -16,17 +16,17 @@ Therefore other functions from drv_ctrl and force_sense are used.*/
 - turn the magnet on and of
 */
 
-#include "main.h"
 #include "z_axis.h"
 #include "force_sense.h"
 #include "drv_ctrl.h"
+#include "plc_com.h"
 
 typedef enum {
 	pick_tool,
 	stamp_tool
 	} tools;
 	
-static tools tool;
+static tools sTool;
 
      /*
 	  * Initialize the Z_axis: move to homeposition and calibrate the force sensor.
@@ -35,7 +35,7 @@ void z_axis_home() {
 	
 	drv_ctrl_home();
 	force_sense_calibrate();
-	tool = pick_tool;
+	sTool = pick_tool;
 	set_state(success);
 }
 
@@ -43,6 +43,11 @@ void z_axis_home() {
 	 * Move down to pick position, switch on magnet and move up to travel position, then give the success message to the PLC.
 	 */
 void z_axis_pick_sample(){
+	
+	if(sTool == stamp_tool) {
+		plc_com_error(e_wrong_tool);
+		return;
+	}
 	
 	drv_ctrl_moveto(PICK_HEIGHT_mm);
 	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
@@ -56,6 +61,11 @@ void z_axis_pick_sample(){
 	 */
 void z_axis_place_sample(){
 	
+	if(sTool == stamp_tool) {
+		plc_com_error(e_wrong_tool);
+		return;
+	}
+	
 	drv_ctrl_moveto(PLACE_HEIGHT_mm);
 	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
 	delay_ms(WAIT_TIME_ms);
@@ -68,6 +78,11 @@ void z_axis_place_sample(){
 	 */
 void z_axis_soak_stamp() {
 	
+	if(sTool == pick_tool) {
+		plc_com_error(e_wrong_tool);
+		return;
+	}
+	
 	drv_ctrl_moveto(SOAK_HEIGHT_mm);
 	drv_ctrl_move_till_force(SOAK_FORCE_mN);
 	delay_ms(WAIT_TIME_ms);
@@ -79,6 +94,11 @@ void z_axis_soak_stamp() {
 	 * Move down to the box till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.
 	 */
 void z_axis_stamp() {
+	
+	if(sTool == pick_tool) {
+		plc_com_error(e_wrong_tool);
+		return;
+	}
 	
 	drv_ctrl_moveto(STAMP_HEIGHT_mm);
 	drv_ctrl_move_till_force(STAMP_FORCE_mN);
@@ -114,18 +134,25 @@ static void z_axis_drop_tool(void) {
 	 */
 void z_axis_close_lid() {
 	
+	if(sTool == stamp_tool) {
+		plc_com_error(e_wrong_tool);
+		return;
+	}
+	
 	drv_ctrl_moveto(CLOSE_HEIGHT_mm);
 	delay_ms(WAIT_TIME_ms);
 	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	set_state(success);
 }
 
 void z_axis_change_tool() {
 	
-	if(tool == pick_tool){
+	if(sTool == pick_tool){
 		z_axis_grab_tool();
-		tool = stamp_tool;
+		sTool = stamp_tool;
 	} else {
 		z_axis_drop_tool();
-		tool = pick_tool;
+		sTool = pick_tool;
 	}
+	set_state(success);
 }
