@@ -13,6 +13,8 @@
 
 void plc_com_success(void);
 
+void plc_com_transmit_force(int16_t);
+
 void plc_com_receive_callback(void);
 
 void plc_com_arm_receiver(void);

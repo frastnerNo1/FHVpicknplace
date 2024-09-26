@@ -13,9 +13,10 @@
 
 #include "main.h"
 #include "drv_ctrl.h"
-#include "rprintf.h"
 #include "plc_com.h"
 #include "force_sense.h"
+#include "z_axis.h"
+#include "stepper_music.h"
 
 struct spi_module spi_master_instance;
 struct spi_slave_inst spi_motor_controller;
@@ -87,6 +88,9 @@ static void configure_port_pins(void)
 	port_pin_set_config(MOTOR_CONTROLLER_DIR_PIN, &config_port_pin);
 	port_pin_set_config(MOTOR_CONTROLLER_STP_PIN, &config_port_pin);
 	port_pin_set_config(MOTOR_CONTROLLER_SS_PIN, &config_port_pin);
+	port_pin_set_config(MAGNET_SWITCH_PIN, &config_port_pin);
+	config_port_pin.direction = PORT_PIN_DIR_INPUT;
+	config_port_pin.input_pull = PORT_PIN_PULL_UP;
 }
 
 
@@ -114,7 +118,6 @@ static void configure_usart(void){
 	
 	while(usart_init(&usart_instance, EXT1_UART_MODULE, &config_usart) != STATUS_OK){
 		delay_ms(1000);
-		rprintf("Wait");
 	}
 	
 	usart_enable(&usart_instance);
@@ -131,10 +134,14 @@ static void configure_usart_callbacks(void){
 	usart_enable_callback(&usart_instance, USART_CALLBACK_BUFFER_RECEIVED);
 }
 
-void set_state(enum system_states new_state) {
+int set_state(enum system_states new_state) {
 	
-	system_state = new_state;
-	
+	if(system_state == start && new_state != init){
+		return EXIT_FAILURE;
+	} else {
+		system_state = new_state;
+		return EXIT_SUCCESS;
+	}
 }
 
 enum system_states get_state(void) {
@@ -148,23 +155,55 @@ int main (void)
 {
 	system_init();
 	delay_init();
-	rprintf_init();
 	configure_port_pins();
     configure_spi_master();
 	configure_stepper_motor();
 	configure_adc();
 	configure_usart();
 	configure_usart_callbacks();
-	force_sense_calibrate();
 	system_interrupt_enable_global();
+	
+	system_state = start;
 	
 	plc_com_arm_receiver();
 	
 	while (1) {
 		
-		drv_ctrl_moveto(10);
-		drv_ctrl_moveto(0);
-		delay_ms(1000);
-		
+		switch(system_state) {
+			case(start):
+			case(idle):
+			case(busy):
+			    break;
+			case(init):
+			    z_axis_home();
+				break;
+			case(pick):
+			    z_axis_pick_sample();
+				break;
+			case(place):
+			    z_axis_place_sample();
+				break;
+			case(change_tool):
+			    z_axis_change_tool();
+				break;
+			case(stamp):
+			    z_axis_stamp();
+				break;
+			case(soak):
+			    z_axis_soak_stamp();
+				break;
+			case(close_lid):
+			    z_axis_close_lid();
+				break;
+			case(get_force):
+				plc_com_transmit_force(
+				    force_sense_get_millinewton()
+				);
+				break;
+			case(success):
+			    plc_com_success();
+				set_state(idle);
+				break;
+		}
 	}
 }

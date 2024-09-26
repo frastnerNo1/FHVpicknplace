@@ -220,20 +220,18 @@ struct drv_config_struct {
 	
 	};
 	
-uint16_t drv_ctrl_read_cmd(uint8_t adress);
+void drv_ctrl_init(struct drv_config_struct *);
 
-int drv_ctrl_init(struct drv_config_struct *);
+void drv_ctrl_enable(void);
 
-int drv_ctrl_enable(void);
+void drv_ctrl_disable(void);
 
-int drv_ctrl_disable(void);
+void drv_ctrl_set_microsteps(uint8_t);
 
-int drv_ctrl_home(void);
+void drv_ctrl_home(void);
 
-int drv_ctrl_moveto(uint16_t);
+void drv_ctrl_moveto(uint16_t);
 
-int drv_ctrl_move_till_force(uint8_t);
-
-uint16_t drv_ctrl_getpos(void);
+void drv_ctrl_move_till_force(uint16_t);
 
 #endif /* DRV_CTRL_H_ */

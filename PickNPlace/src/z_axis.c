@@ -16,34 +16,116 @@ Therefore other functions from drv_ctrl and force_sense are used.*/
 - turn the magnet on and of
 */
 
-int z_axis_home() {
-	/*Initialize homing sequence then sets axis state to home and ready.*/
+#include "main.h"
+#include "z_axis.h"
+#include "force_sense.h"
+#include "drv_ctrl.h"
+
+typedef enum {
+	pick_tool,
+	stamp_tool
+	} tools;
+	
+static tools tool;
+
+     /*
+	  * Initialize the Z_axis: move to homeposition and calibrate the force sensor.
+	  */
+void z_axis_home() {
+	
+	drv_ctrl_home();
+	force_sense_calibrate();
+	tool = pick_tool;
+	set_state(success);
 }
 
-int z_axis_pick_sample(){
-	/* Move down to pick position, switch on magnet and move up to travel position, then give the success message to the PLC. */
+    /*
+	 * Move down to pick position, switch on magnet and move up to travel position, then give the success message to the PLC.
+	 */
+void z_axis_pick_sample(){
+	
+	drv_ctrl_moveto(PICK_HEIGHT_mm);
+	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	set_state(success);
 }
 
-int z_axis_place_sample(){
-	/* Move down to place position, switch of magnet and move up to travel position, then give the success message to the PLC. */
+    /*
+	 * Move down to place position, switch of magnet and move up to travel position, then give the success message to the PLC.
+	 */
+void z_axis_place_sample(){
+	
+	drv_ctrl_moveto(PLACE_HEIGHT_mm);
+	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	set_state(success);
 }
 
-int z_axis_soak_stamp() {
-	/* Move down to the pad till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.*/
+    /* 
+	 * Move down to the pad till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.
+	 */
+void z_axis_soak_stamp() {
+	
+	drv_ctrl_moveto(SOAK_HEIGHT_mm);
+	drv_ctrl_move_till_force(SOAK_FORCE_mN);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	set_state(success);
 }
 
-int z_axis_stamp() {
-	/* Move down to the box till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.*/
+    /* 
+	 * Move down to the box till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.
+	 */
+void z_axis_stamp() {
+	
+	drv_ctrl_moveto(STAMP_HEIGHT_mm);
+	drv_ctrl_move_till_force(STAMP_FORCE_mN);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	set_state(success);
 }
 
-int z_axis_grab_tool() {
-	/* Move down to the tool, switch on magnet, move to travel position and calibrate the force sensor. Returns 1 on success and 0 on failure.*/
+    /*
+	 * Move down to the tool, switch on magnet, move to travel position and calibrate the force sensor. Returns 1 on success and 0 on failure.
+	 */
+static void z_axis_grab_tool(void) {
+	
+	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
+	drv_ctrl_moveto(TOOL_GRAB_HEIGHT_mm);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
 }
 
-int z_axis_drop_tool() {
-	/* Move down to the toolholder, switch of magnet, move to travel position and calibrate the force sensor. Returns 1 on success and 0 on failure. */
+    /*
+	 * Move down to the toolholder, switch of magnet, move to travel position and calibrate the force sensor. Returns 1 on success and 0 on failure.
+	 */
+static void z_axis_drop_tool(void) {
+	
+	drv_ctrl_moveto(TOOL_DROP_HEIGHT_mm);
+	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
 }
 
-int z_axis_close_lid() {
-	/* Here the sequence for closing the lid is implementer. This sequence has to be defined, based on the mechanical aspects of the machine.*/
+    /* 
+	 * Here the sequence for closing the lid is implementer. This sequence has to be defined, based on the mechanical aspects of the machine.
+	 */
+void z_axis_close_lid() {
+	
+	drv_ctrl_moveto(CLOSE_HEIGHT_mm);
+	delay_ms(WAIT_TIME_ms);
+	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+}
+
+void z_axis_change_tool() {
+	
+	if(tool == pick_tool){
+		z_axis_grab_tool();
+		tool = stamp_tool;
+	} else {
+		z_axis_drop_tool();
+		tool = pick_tool;
+	}
 }

@@ -16,10 +16,12 @@
 */
 
 #include "drv_ctrl.h"
+#include "force_sense.h"
+
+enum direction {up = DIRECTION_UP, down = DIRECTION_DOWN};
 
 static struct drv_config_struct drv_config;
-static enum direction {up = DIRECTION_UP, down = DIRECTION_DOWN};
-static uint16_t actual_position_mm;
+static uint32_t actual_position_steps;
 
     /* Pure SPI write function, takes register and data as input and send it to the stepper controller via SPI.
 	 * Returns 0 on success and 1 on failure.
@@ -43,7 +45,7 @@ static int drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
     /* Pure SPI read function, takes register adress as input and reads 16 bit of data then returns 
 	 * the date on success or 1 on failure. The first 4 bits are not relevant.
 	 */	
-uint16_t drv_ctrl_read_cmd(uint8_t adress) {
+static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 	
 	uint16_t dummy = ((adress << 4) | (1 << 7));
 	uint8_t data[2] ={0x00, 0x00};
@@ -129,7 +131,7 @@ static void drv_ctrl_write_drive(void){
 }
 
     /* Initialize the stepper driver, drv_config_struct is defined in this file and exported in header. */
-int drv_ctrl_init(struct drv_config_struct * const new_config) {
+void drv_ctrl_init(struct drv_config_struct * const new_config) {
 	
 	drv_config = *new_config;
 	
@@ -140,41 +142,58 @@ int drv_ctrl_init(struct drv_config_struct * const new_config) {
 	drv_ctrl_write_decay();			
 	drv_ctrl_write_stall();			
 	drv_ctrl_write_drive();	
-			
-	return EXIT_SUCCESS;
 }
 
-int drv_ctrl_enable(){
+void drv_ctrl_enable(){
 	
 	drv_config.enable = DRV_ENABLE;
 	drv_ctrl_write_ctrl();
-	
-	return EXIT_SUCCESS;
 }
 
-int drv_ctrl_disable(){
+void drv_ctrl_disable(){
 	
 	drv_config.enable = DRV_DISABLE;
 	drv_ctrl_write_ctrl();
-	
-	return EXIT_SUCCESS;
 }
 
-int drv_ctrl_home() {
-	/* Moves drive up until the top switch is reached. Then stops and set Position to 0. Returns 1 on success and 0 on failure.*/	
+void drv_ctrl_set_microsteps(uint8_t steps) {
+	
+	drv_config.step_mode = steps;
+	drv_ctrl_write_ctrl();
+}
+
+/*
+ *Moves drive up until the top switch is reached.
+ *Then stops and set Position to 0. Returns 1 on success and 0 on failure.
+ */
+void drv_ctrl_home() {
+	
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
+	while (port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN))
+	{
+		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
+		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
+	}
+	
+	actual_position_steps = 0;
+		
 }
 
     /* Move to position, takes target position as input in mm from top. Check also for out of range position.
 	 * when move is complete set new position. Returns 1 on success and 0 on failure. This function is blocking!!
 	 */
-int drv_ctrl_moveto(uint16_t position_mm) {
+void drv_ctrl_moveto(uint16_t position_mm) {
 	
 	if(position_mm > Z_AXIS_MAX_TRAVEL) {
-		return EXIT_FAILURE;
+		return;
 	}
 	
-	enum direction dir = (actual_position_mm > position_mm) ? up : down;
-	uint16_t steps = abs(actual_position_mm - position_mm) * Z_AXIS_STEPS_PER_MM;
+	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM;
+	
+	enum direction dir = (actual_position_steps > target_steps) ? up : down;
+	uint32_t steps = abs(actual_position_steps - target_steps);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
 	for(int i = 0; i <= steps; i++){
@@ -184,20 +203,34 @@ int drv_ctrl_moveto(uint16_t position_mm) {
 		delay_us(STEPPER_PULSE_PERIOD_us);
 	}
 	
-	actual_position_mm = position_mm;
-	
-	return EXIT_SUCCESS;
-	
+	actual_position_steps = target_steps;	
 }
 
-int drv_ctrl_move_till_force(uint8_t force_mN) {
-	/* Move till defined force is reached. Check for maximum force and maximum moving range.
-	 * when defined force is reached the drive will stop. Returns 1 on success and 0 an failure*/
-}
 
-	/*Returns the actual position of the Z-Axis in mm from top.*/
-uint16_t drv_ctrl_getpos() {
+    /*
+	 * Move till defined force is reached. Check for maximum force and maximum moving range.
+	 * when defined force is reached the drive will stop.
+	 */
+void drv_ctrl_move_till_force(uint16_t force_mN) {
 	
-	return actual_position_mm;
+	uint16_t step_counter = 0;
 	
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
+	
+	while(force_sense_get_millinewton() < force_mN) {
+		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
+		delay_us(STEPPER_PULSE_PERIOD_us);
+		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
+		delay_us(STEPPER_PULSE_PERIOD_us);
+		step_counter++;
+	}
+	
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
+	
+	for( ;step_counter > 0; step_counter--) {
+		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
+		delay_us(STEPPER_PULSE_PERIOD_us);
+		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
+		delay_us(STEPPER_PULSE_PERIOD_us);
+	}
 }

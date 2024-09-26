@@ -31,22 +31,23 @@
 /* b --> busy, can't process command                                    */
 /* u --> unknown, command is not known                                  */
 /* s --> success, command successfully fullfiled                        */
+/* f --> failde, command could not be fullfiled                         */
 /*                                                                      */
-/* ETX (03h) --> End of transmition                                    */
+/* ETX (03h) --> End of transmition                                     */
 /************************************************************************/
 
 #include "plc_com.h"
 #include "main.h"
-#include "force_sense.h"
 #include "rprintf.h"
 
 const char EOT = 0x03;
 
 enum states {
 	s_acknowledge   = 'a',
-	s_busy         = 'b',
-	s_unknown      = 'u',
-	s_success      = 's'
+	s_busy          = 'b',
+	s_unknown       = 'u',
+	s_success       = 's',
+	s_failed        = 'f'
 	};
 	
 enum commands {
@@ -56,7 +57,10 @@ enum commands {
 	c_force = 'F'
 	};
 
-uint16_t rx_buffer;
+static uint16_t rx_buffer;
+
+static void plc_com_send_cmd(bool, enum states, uint16_t);
+static void plc_com_plc_to_state(enum commands, uint8_t);
 
 
     /* 
@@ -64,34 +68,42 @@ uint16_t rx_buffer;
 	 */
 static void plc_com_plc_to_state(enum commands command, uint8_t specifier) {
 	
+	int acknowledge = 0;
+	
 	switch(command){
 		case(c_init):
-			set_state(init);
+			acknowledge = set_state(init);
 			break;
 		case(c_force):
-			set_state(get_force);
+			acknowledge = set_state(get_force);
 			break;
 		case(c_tool):
-		    set_state(get_tool);
+		    acknowledge = set_state(change_tool);
 			break;
 		case(c_move):
 		    switch(specifier) {
 				case('u'):
-				    set_state(pick);
+				    acknowledge = set_state(pick);
 				    break;
 				case('d'):
-				    set_state(place);
+				    acknowledge = set_state(place);
 					break;
 				case('c'):
-				    set_state(close_lid);
+				    acknowledge = set_state(close_lid);
 					break;
 				case('s'):
-				    set_state(stamp);
+				    acknowledge = set_state(stamp);
 				    break;
 				case('i'):
-				    set_state(soak);
+				    acknowledge = set_state(soak);
 					break;
 			}
+	}
+	
+	if(acknowledge == EXIT_SUCCESS) {
+		plc_com_send_cmd(false, s_acknowledge, 0);
+	} else {
+		plc_com_send_cmd(false, s_failed, 0);
 	}
 }
     
@@ -104,7 +116,7 @@ static void plc_com_send_cmd(bool force_tx, enum states state, uint16_t force) {
 	if(force_tx) {
 		len = 4;
 		tx_buffer[0] = 'F';
-		tx_buffer[1] = (force >> 4);
+		tx_buffer[1] = (force >> 8);
 		tx_buffer[2] = (force & 0xFF);
 		tx_buffer[3] = EOT;
 	} else {
@@ -126,6 +138,13 @@ void plc_com_success() {
 	
 }
 
+    /*
+	 * Returns the force value to the PLC.
+	 */
+void plc_com_transmit_force(int16_t force) {
+	plc_com_send_cmd(true, s_success, force);
+}
+
 void plc_com_arm_receiver() {
 	
 	usart_read_job(&usart_instance, &rx_buffer);
@@ -138,7 +157,7 @@ void plc_com_receive_callback() {
 	static uint8_t specifier;
 	static bool await_eot = false;
 	
-	if(get_state() != idle) {
+	if(get_state() != idle || get_state() != start) {
 		plc_com_send_cmd(false, s_busy, 0);
 		plc_com_arm_receiver();
 		return;
@@ -158,7 +177,6 @@ void plc_com_receive_callback() {
 	
 	if(rx_buffer == EOT) {
 		set_state(busy);
-		plc_com_send_cmd(false, s_acknowledge, 0);
 		plc_com_plc_to_state(command, specifier);
 		symbol_counter = 0;
 		await_eot = false;
