@@ -12,3 +12,12 @@ PickNPlace/Debug/src/force_sense.o
 PickNPlace/Debug/src/main.d
 PickNPlace/Debug/PickNPlace.hex
 PickNPlace/Debug/PickNPlace.hex
+PickNPlace/.vs/PickNPlace/v14/.atsuo
+PickNPlace/Debug/PickNPlace.bin
+PickNPlace/Debug/PickNPlace.hex
+PickNPlace/Debug/PickNPlace.map
+PickNPlace/Debug/src/drv_ctrl.o
+PickNPlace/Debug/src/force_sense.o
+PickNPlace/Debug/src/main.o
+PickNPlace/Debug/src/plc_com.o
+PickNPlace/Debug/src/z_axis.o
