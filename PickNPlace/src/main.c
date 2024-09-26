@@ -67,7 +67,7 @@ static void configure_stepper_motor(void) {
 	stepper_motor_config.drv_tblank = 0xFF; //Check if change is needed
 	stepper_motor_config.adaptive_blanking_time= DRV_ABT_DISABLE;
 	stepper_motor_config.drv_tdecay = 0x10; //Check if check is needed
-	stepper_motor_config.decay_mode = DRV_DECMOD_FORCE_SLOWINC_FASTDEC; //Check if change is needed
+	stepper_motor_config.decay_mode = DRV_DECMOD_FORCE_AUTOMIXED; //Check if change is needed
 	stepper_motor_config.ocp_threshold = DRV_OCPTH_250mV;
 	stepper_motor_config.ocp_deglitch_time = DRV_OCPDEG_4us;
 	stepper_motor_config.ls_drive_time = DRV_TDRIVEN_1us;
@@ -157,6 +157,8 @@ enum system_states get_state(void) {
 	
 }
 
+uint16_t notes1[15] = {7000, 6000, 7000, 3000, 3000, 0, 7000, 6000, 7000, 6000, 5500, 5500, 7000, 6000, 7000};
+
 
 int main (void)
 {
@@ -210,6 +212,9 @@ int main (void)
 				plc_com_transmit_force(
 				    force_sense_get_millinewton()
 				);
+				break;
+			case(music):
+			    stepper_music_play(notes1, 15);
 				break;
 			case(success):
 			    plc_com_success();

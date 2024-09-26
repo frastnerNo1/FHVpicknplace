@@ -24,6 +24,8 @@ static struct drv_config_struct sDrvConfig;
 
 static uint32_t sActualPositionSteps;
 
+static uint8_t sStepDivider;
+
     /* Pure SPI write function, takes register and data as input and send it to the stepper controller via SPI.
 	 * Returns 0 on success and 1 on failure.
 	 */
@@ -155,6 +157,36 @@ void drv_ctrl_set_microsteps(uint8_t steps) {
 	
 	sDrvConfig.step_mode = steps;
 	drv_ctrl_write_ctrl();
+	
+	switch(steps) {
+		case(DRV_MODE_1):
+		    sStepDivider = 1;
+			break;
+		case(DRV_MODE_1_2):
+		    sStepDivider = 2;
+		    break;
+		case(DRV_MODE_1_4):
+		    sStepDivider = 4;
+			break;
+		case(DRV_MODE_1_8):
+		    sStepDivider = 8;
+		    break;
+		case(DRV_MODE_1_16):
+		    sStepDivider = 16;
+		    break;
+		case(DRV_MODE_1_32):
+		    sStepDivider = 32;
+		    break;
+		case(DRV_MODE_1_64):
+		    sStepDivider = 64;
+		    break;
+		case(DRV_MODE_1_128):
+		    sStepDivider = 128;
+			break;
+	    case(DRV_MODE_1_256):
+		    sStepDivider = 256;
+			break;
+	}
 }
 
 /*
@@ -163,13 +195,15 @@ void drv_ctrl_set_microsteps(uint8_t steps) {
  */
 void drv_ctrl_home() {
 	
+	drv_ctrl_set_microsteps(DRV_MODE_1_64);
+	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
 	while (port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN))
 	{
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
+		delay_us(STEPPER_PULSE_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
+		delay_us(STEPPER_PULSE_PERIOD_us);
 	}
 	
 	sActualPositionSteps = 0;
@@ -185,7 +219,9 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 		return;
 	}
 	
-	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM;
+	drv_ctrl_set_microsteps(DRV_MODE_1_4);
+	
+	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM * sStepDivider;
 	
 	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
 	uint32_t steps = abs(sActualPositionSteps - target_steps);
@@ -198,7 +234,7 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 		delay_us(STEPPER_PULSE_PERIOD_us);
 	}
 	
-	sActualPositionSteps = target_steps;	
+	sActualPositionSteps = target_steps / sStepDivider;	
 }
 
 
@@ -210,6 +246,8 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 	
 	uint16_t step_counter = 0;
 	
+	drv_ctrl_set_microsteps(DRV_MODE_1_64);
+	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
 	
 	while(force_sense_get_millinewton() < force_mN) {
@@ -217,12 +255,12 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 		delay_us(STEPPER_PULSE_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
 		delay_us(STEPPER_PULSE_PERIOD_us);
-		step_counter++;
+		step_counter ++;
 	}
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
 	
-	for( ;step_counter > 0; step_counter--) {
+	for( ;step_counter > 0; step_counter-- ) {
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
 		delay_us(STEPPER_PULSE_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);

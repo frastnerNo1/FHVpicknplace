@@ -41,6 +41,7 @@ enum system_states {
 	soak,
 	close_lid,
 	get_force,
+	music,
 	success
 	};    
 

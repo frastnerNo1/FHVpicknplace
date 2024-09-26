@@ -14,14 +14,13 @@
 #define DIRECTION_UP                    true
 #define DIRECTION_DOWN                  !DIRECTION_UP
 
-#define STEPPER_PULSE_PERIOD_us         500
-#define STEPPER_PULSE_SLOW_PERIOD_us    3000
+#define STEPPER_PULSE_PERIOD_us         50
+#define STEPPER_PULSE_SLOW_PERIOD_us    1000
 
 #define Z_AXIS_MAX_TRAVEL               100
 #define Z_AXIS_MM_PER_REV               10
-#define Z_AXIS_MICROSTEPS               4
 
-#define Z_AXIS_STEPS_PER_REV            (200 * Z_AXIS_MICROSTEPS)
+#define Z_AXIS_STEPS_PER_REV            200
 #define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)
 
 
@@ -50,9 +49,9 @@
 	
 	enum drv_mode {
 		/** Full-step*/
-		DRV_MODE_1          = (0b0000 << 3),
+		DRV_MODE_1             = (0b0000 << 3),
 		/** Half-step*/
-		DRV_MODE_1_2          = (0b0001 << 3),
+		DRV_MODE_1_2           = (0b0001 << 3),
 		/** 1/4 step*/
 		DRV_MODE_1_4           = (0b0010 << 3),
 		/** 1/8 step*/

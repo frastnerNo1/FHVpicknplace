@@ -31,7 +31,9 @@
 /* b --> busy, can't process command                                    */
 /* u --> unknown, command is not known                                  */
 /* s --> success, command successfully fullfiled                        */
-/* f --> failde, command could not be fullfiled                         */
+/* f --> failed, command could not be fullfiled                         */
+/* e1 --> error 1, system not initialized                               */
+/* e2 --> error 2, wrong tool is active for this command                */
 /*                                                                      */
 /* ETX (03h) --> End of transmition                                     */
 /************************************************************************/
@@ -96,13 +98,16 @@ static void plc_com_plc_to_state(enum commands command, uint8_t specifier) {
 				case('i'):
 				    acknowledge = set_state(soak);
 					break;
+				case('m'):
+				    acknowledge = set_state(music);
+					break;
 			}
 	}
 	
 	if(acknowledge == EXIT_SUCCESS) {
 		plc_com_transmit_status(s_acknowledge, 0);
 	} else {
-		plc_com_transmit_status(s_error, 1);
+		plc_com_transmit_status(s_error, e_not_init);
 		set_state(idle);
 	}
 }
@@ -117,7 +122,7 @@ static void plc_com_transmit_status(enum states status, enum errorCodes code) {
 	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = EOT);
 	txBuffer[3] = EOT;
 		
-	usart_write_buffer_wait(&gUsartInstance, txBuffer, 3);
+	usart_write_buffer_wait(&gUsartInstance, txBuffer, 4);
 }
 
 	/*
@@ -144,14 +149,19 @@ void plc_com_error(enum errorCodes code) {
 	 */
 void plc_com_transmit_force(int16_t force) {
 	
-	uint8_t txBuffer[4];
+	/*TODO: add atoi function. */
+	
+	uint8_t txBuffer[5];
 	
 	txBuffer[0] = 'F';
-	txBuffer[1] = (force >> 8);
-	txBuffer[2] = (force & 0xFF);
-	txBuffer[3] = EOT;
+	txBuffer[1] = (force < 0) ? '-' : '+';
+	txBuffer[2] = (uint8_t)(abs(force) >> 8);
+	txBuffer[3] = (uint8_t)(abs(force) & 0xFF);
+	txBuffer[4] = EOT;
 	
-	usart_write_buffer_wait(&gUsartInstance, txBuffer, 4);
+	usart_write_buffer_wait(&gUsartInstance, txBuffer, 5);
+	
+	set_state(idle);
 }
 
 void plc_com_arm_receiver() {
@@ -229,6 +239,7 @@ void plc_com_receive_callback() {
 			case('c'):
 			case('s'):
 			case('i'):
+			case('m'):
 			    specifier = sRxBuffer;
 			    break;
 			default:
