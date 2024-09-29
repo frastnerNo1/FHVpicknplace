@@ -40,7 +40,7 @@
 
 #include "plc_com.h"
 
-const char EOT = 0x03;
+const char ETX = 0x03;
 
 enum states {
 	s_acknowledge   = 'a',
@@ -62,6 +62,7 @@ static uint16_t sRxBuffer;
 
 static void plc_com_transmit_status(enum states, enum errorCodes);
 static void plc_com_plc_to_state(enum commands, uint8_t);
+static void plc_com_itoa(int16_t, uint8_t *);
 
 
     /* 
@@ -119,8 +120,8 @@ static void plc_com_transmit_status(enum states status, enum errorCodes code) {
 	
 	txBuffer[0] = 'S';
 	txBuffer[1] = status;
-	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = EOT);
-	txBuffer[3] = EOT;
+	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = ETX);
+	txBuffer[3] = ETX;
 		
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, 4);
 }
@@ -149,15 +150,12 @@ void plc_com_error(enum errorCodes code) {
 	 */
 void plc_com_transmit_force(int16_t force) {
 	
-	/*TODO: add atoi function. */
-	
-	uint8_t txBuffer[5];
+	uint8_t txBuffer[8];
+
+    plc_com_itoa(force, txBuffer);
 	
 	txBuffer[0] = 'F';
-	txBuffer[1] = (force < 0) ? '-' : '+';
-	txBuffer[2] = (uint8_t)(abs(force) >> 8);
-	txBuffer[3] = (uint8_t)(abs(force) & 0xFF);
-	txBuffer[4] = EOT;
+	txBuffer[7] = ETX;
 	
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, 5);
 	
@@ -174,7 +172,7 @@ void plc_com_receive_callback() {
 	static uint8_t sSymbolCounter = 0;
 	static enum commands command;
 	static uint8_t specifier;
-	static bool awaitEot = false;
+	static bool awaitEtx = false;
 	
 	if(get_state() != idle && get_state() != start) {
 		plc_com_transmit_status(s_busy, 0);
@@ -187,18 +185,18 @@ void plc_com_receive_callback() {
 		specifier = 0;
 	}
 	
-	if(((sRxBuffer == EOT) != awaitEot) || sSymbolCounter > 2 ) {
+	if(((sRxBuffer == ETX) != awaitEtx) || sSymbolCounter > 2 ) {
 		plc_com_transmit_status(s_unknown, 0);
 		sSymbolCounter = 0;
 		plc_com_arm_receiver();
 		return;
 	}
 	
-	if(sRxBuffer == EOT) {
+	if(sRxBuffer == ETX) {
 		set_state(busy);
 		plc_com_plc_to_state(command, specifier);
 		sSymbolCounter = 0;
-		awaitEot = false;
+		awaitEtx = false;
 		plc_com_arm_receiver();
 		return;
 	}
@@ -207,19 +205,19 @@ void plc_com_receive_callback() {
 	    switch(sRxBuffer) {
 		    case('I'):
 			    command = c_init;
-				awaitEot = true;
+				awaitEtx = true;
 				break;
 			case('M'):
 			    command = c_move;
-				awaitEot = false;
+				awaitEtx = false;
 				break;
 			case('T'):
 			    command = c_tool;
-				awaitEot = true;
+				awaitEtx = true;
 				break;
 			case('F'):
 			    command = c_force;
-				awaitEot = true;
+				awaitEtx = true;
 				break;
 			default:
 			    plc_com_transmit_status(s_unknown, 0);
@@ -249,9 +247,34 @@ void plc_com_receive_callback() {
 				return;
 		}
 		sSymbolCounter++;
-		awaitEot = true;
+		awaitEtx = true;
 		plc_com_arm_receiver();
 		return;
 	}
+}
+
+
+    /*
+     * This funtion converts a signed 16 Bit number to ASCII characters.
+     * The functions put the ASCII characters at designated places in the array which is privided by caller function.
+     * + or - sign on second place of array, numbers on place 3 to 7.
+     */
+static void plc_com_itoa(int16_t number, uint8_t * buffer) {
+    
+    if(number < 0) {
+        buffer[1] = '-';
+    } else {
+        buffer[1] = '+';
+    }
+
+    buffer[2] = '0' + (number / 10000);
+    number %= 10000;
+    buffer[3] = '0' + (number / 1000);
+    number %= 1000;
+    buffer[4] = '0' + (number / 100);
+    number %= 100;
+    buffer[5] = '0' + (number / 10);
+    number %= 10;
+    buffer[6] = '0' + number;
 }
 

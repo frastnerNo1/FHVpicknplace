@@ -5,16 +5,10 @@
  *  Author: floro
  */ 
 
-/* Here do all commands regarding the z-axis. This includes movement, triggering actuators like the magnet and checking the force value.
-Therefore other functions from drv_ctrl and force_sense are used.*/
-
-
-/*Todo: implement functions for the following:
-- homing
-- moving to specific points
-- checking forge while moving
-- turn the magnet on and of
-*/
+/* 
+ * Here do all commands regarding the z-axis. This includes movement, triggering actuators like the magnet and checking the force value.
+ * Therefore other functions from drv_ctrl and force_sense are used.
+ */
 
 #include "z_axis.h"
 #include "force_sense.h"
@@ -27,6 +21,9 @@ typedef enum {
 	} tools;
 	
 static tools sTool;
+
+static void z_axis_grab_tool(void);
+static void z_axis_drop_tool(void);
 
      /*
 	  * Initialize the Z_axis: move to homeposition and calibrate the force sensor.
@@ -74,7 +71,7 @@ void z_axis_place_sample(){
 }
 
     /* 
-	 * Move down to the pad till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.
+	 * Move down to the pad till the required force is reached. Then move to the travel position.
 	 */
 void z_axis_soak_stamp() {
 	
@@ -91,7 +88,7 @@ void z_axis_soak_stamp() {
 }
 
     /* 
-	 * Move down to the box till the required force is reached. Then move to the travel position. Returns 1 on success and 0 on failure.
+	 * Move down to the box till the required force is reached. Then move to the travel position.
 	 */
 void z_axis_stamp() {
 	
@@ -108,7 +105,7 @@ void z_axis_stamp() {
 }
 
     /*
-	 * Move down to the tool, switch on magnet, move to travel position and calibrate the force sensor. Returns 1 on success and 0 on failure.
+	 * Move down to the tool, switch on magnet, move to travel position and calibrate the force sensor.
 	 */
 static void z_axis_grab_tool(void) {
 	
@@ -116,10 +113,11 @@ static void z_axis_grab_tool(void) {
 	drv_ctrl_moveto(TOOL_GRAB_HEIGHT_mm);
 	delay_ms(WAIT_TIME_ms);
 	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	force_sense_calibrate();
 }
 
     /*
-	 * Move down to the toolholder, switch of magnet, move to travel position and calibrate the force sensor. Returns 1 on success and 0 on failure.
+	 * Move down to the tool holder, switch off magnet, move to travel position and calibrate the force sensor.
 	 */
 static void z_axis_drop_tool(void) {
 	
@@ -127,6 +125,7 @@ static void z_axis_drop_tool(void) {
 	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
 	delay_ms(WAIT_TIME_ms);
 	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	force_sense_calibrate();
 }
 
     /* 

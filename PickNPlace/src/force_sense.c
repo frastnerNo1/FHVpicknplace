@@ -12,8 +12,12 @@
 static uint16_t sForceSenseLastReadout;
 static uint16_t sForceSenseZeroValue;
 
-    /* Reads the voltage from the INA via ADC, save the raw value in memory. Returns 1 on success and 0 on error*/
-static void force_sense_read_sense(void) {
+static void force_sense_read_sense(void);
+
+    /* 
+	 * Reads the voltage from the INA via ADC, save the raw value in memory.
+	 */
+static void force_sense_read_sense() {
 	
 	adc_start_conversion(&gAdcInstance);
 	
@@ -22,8 +26,8 @@ static void force_sense_read_sense(void) {
 	}
 }
 
-    /* Read the force sensor and set the value as new zero value.
-	 * Returns 1 on success and 0 on failure
+    /* 
+	 * Read the force sensor and set the value as new zero value.
 	 */
 void force_sense_calibrate() {
 	
@@ -31,7 +35,9 @@ void force_sense_calibrate() {
 	sForceSenseZeroValue = sForceSenseLastReadout;
 }
 
-    /* Trigger a force sensor reading and converts the value to millinewton and returns it. */
+    /* 
+	 * Trigger a force sensor readout and converts the value to millinewton and returns it.
+	 */
 int16_t force_sense_get_millinewton() {
 	
 	force_sense_read_sense();
@@ -41,7 +47,9 @@ int16_t force_sense_get_millinewton() {
 }
 
 
-    /* Trigger a force sensor reading and converts the value to gram then returns it. */
+    /*
+	 * Trigger a force sensor readout and converts the value to gram then returns it.
+	 */
 int16_t force_sense_get_gramm() {
 	
 	force_sense_read_sense();

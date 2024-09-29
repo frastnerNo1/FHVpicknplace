@@ -5,15 +5,10 @@
  *  Author: floro
  */ 
 
-/* This file manages the drive related stuff. Private functions handling bare SPÌ com functionality. Public functions handles move commands.*/
-
-/* Todo: implement the following functions:
-- bare SPI register write
-- bare SPI register read
-- move to home
-- move to specific position
-- return actual position
-*/
+/* This file manages the motor related functions.
+ * Private functions handling bare SPÌ com functionality.
+ * Public functions handles move commands
+ */
 
 #include "drv_ctrl.h"
 #include "force_sense.h"
@@ -24,10 +19,20 @@ static struct drv_config_struct sDrvConfig;
 
 static uint32_t sActualPositionSteps;
 
-static uint8_t sStepDivider;
+static uint16_t sStepDivider;
 
-    /* Pure SPI write function, takes register and data as input and send it to the stepper controller via SPI.
-	 * Returns 0 on success and 1 on failure.
+static void drv_ctrl_write_cmd(uint8_t, uint16_t);
+static uint16_t drv_ctrl_read_cmd(uint8_t);
+static void drv_ctrl_write_ctrl(void);
+static void drv_ctrl_write_torque(void);
+static void drv_ctrl_write_off(void);
+static void drv_ctrl_write_blank(void);
+static void drv_ctrl_write_decay(void);
+static void drv_ctrl_write_stall(void);
+static void drv_ctrl_write_drive(void);
+
+    /* 
+	 * Pure SPI write function, takes register and data as input and send it to the stepper controller via SPI.
 	 */
 static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 	
@@ -40,7 +45,7 @@ static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 
 
     /* Pure SPI read function, takes register adress as input and reads 16 bit of data then returns 
-	 * the date on success or 1 on failure. The first 4 bits are not relevant.
+	 * the data on success or 1 on failure. The first 4 bits are not relevant.
 	 */	
 static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 	
@@ -58,11 +63,12 @@ static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 	}
 }
 
-    /* Following functions writes to one designated register. The functions are using the local configuration struct
+    /*
+	 * Following private functions writes to one designated register. The functions are using the local configuration struct
 	 * to prevent overwriting of previous values.
 	 */
 
-static void drv_ctrl_write_ctrl(void){
+static void drv_ctrl_write_ctrl(){
 	
 	drv_ctrl_write_cmd(CTRL_REG,
 	sDrvConfig.direction_set |
@@ -74,7 +80,7 @@ static void drv_ctrl_write_ctrl(void){
 	
 }
 
-static void drv_ctrl_write_torque(void){
+static void drv_ctrl_write_torque(){
 	
 	drv_ctrl_write_cmd(TORQUE_REG,
 	sDrvConfig.drv_torque |
@@ -82,7 +88,7 @@ static void drv_ctrl_write_torque(void){
 	
 }
 
-static void drv_ctrl_write_off(void){
+static void drv_ctrl_write_off(){
 	
     drv_ctrl_write_cmd(OFF_REG,
     sDrvConfig.drv_toff |
@@ -90,7 +96,7 @@ static void drv_ctrl_write_off(void){
 	
 }
 
-static void drv_ctrl_write_blank(void){
+static void drv_ctrl_write_blank(){
 	
 	drv_ctrl_write_cmd(BLANK_REG,
 	sDrvConfig.drv_tblank |
@@ -98,7 +104,7 @@ static void drv_ctrl_write_blank(void){
 	
 }
 
-static void drv_ctrl_write_decay(void){
+static void drv_ctrl_write_decay(){
 	
 	drv_ctrl_write_cmd(DECAY_REG,
 	sDrvConfig.drv_tdecay |
@@ -106,7 +112,7 @@ static void drv_ctrl_write_decay(void){
 	
 }
 
-static void drv_ctrl_write_stall(void){
+static void drv_ctrl_write_stall(){
 	
 	drv_ctrl_write_cmd(STALL_REG,
 	sDrvConfig.drv_sdthr |
@@ -115,7 +121,7 @@ static void drv_ctrl_write_stall(void){
 	
 }
 
-static void drv_ctrl_write_drive(void){
+static void drv_ctrl_write_drive(){
 	
 	drv_ctrl_write_cmd(DRIVE_REG,
 	sDrvConfig.ocp_threshold |
@@ -127,7 +133,9 @@ static void drv_ctrl_write_drive(void){
 	
 }
 
-    /* Initialize the stepper driver, drv_config_struct is defined in this file and exported in header. */
+    /*
+	 * Initialize the stepper driver, drv_config_struct is defined in the header file.
+	 */
 void drv_ctrl_init(struct drv_config_struct * const new_config) {
 	
 	sDrvConfig = *new_config;
@@ -189,10 +197,10 @@ void drv_ctrl_set_microsteps(uint8_t steps) {
 	}
 }
 
-/*
- *Moves drive up until the top switch is reached.
- *Then stops and set Position to 0. Returns 1 on success and 0 on failure.
- */
+    /*
+     * Moves drive up until the top switch is reached.
+     * Then stops and set Position to 0.
+     */
 void drv_ctrl_home() {
 	
 	drv_ctrl_set_microsteps(DRV_MODE_1_64);
@@ -211,7 +219,7 @@ void drv_ctrl_home() {
 }
 
     /* Move to position, takes target position as input in mm from top. Check also for out of range position.
-	 * when move is complete set new position. Returns 1 on success and 0 on failure. This function is blocking!!
+	 * when move is complete set new position. This function is blocking!!
 	 */
 void drv_ctrl_moveto(uint16_t position_mm) {
 	
@@ -221,10 +229,10 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	
 	drv_ctrl_set_microsteps(DRV_MODE_1_4);
 	
-	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM * sStepDivider;
+	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM ;
 	
 	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
-	uint32_t steps = abs(sActualPositionSteps - target_steps);
+	uint32_t steps = abs(sActualPositionSteps - target_steps)*sStepDivider;
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
 	for(uint32_t i = 0; i <= steps; i++){
@@ -234,7 +242,7 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 		delay_us(STEPPER_PULSE_PERIOD_us);
 	}
 	
-	sActualPositionSteps = target_steps / sStepDivider;	
+	sActualPositionSteps = target_steps;	
 }
 
 
