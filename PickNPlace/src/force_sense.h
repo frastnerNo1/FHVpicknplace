@@ -20,4 +20,6 @@ int16_t force_sense_get_millinewton(void);
 
 int16_t force_sense_get_gramm(void);
 
+uint32_t force_sense_get_uV(void);
+
 #endif /* FORCE_SENSE_H_ */

@@ -11,6 +11,7 @@
 
 #include "main.h"
 
+/* The following defines specify the heights for every position in mm from upper dead end position. */
 #define PICK_HEIGHT_mm                  150
 #define PLACE_HEIGHT_mm                 100
 #define TOOL_GRAB_HEIGHT_mm             100
@@ -20,8 +21,10 @@
 #define CLOSE_HEIGHT_mm                 50
 #define TRAVEL_HEIGHT_mm                5
 
+/* Z axis remains for the wait time at each position. */
 #define WAIT_TIME_ms                    2000
 
+/* Target force in millinewton for the stamp. */
 #define SOAK_FORCE_mN                   (int16_t)1000
 #define STAMP_FORCE_mN                  (int16_t)1000
 

@@ -17,7 +17,7 @@
 #define STEPPER_PULSE_PERIOD_us         50
 #define STEPPER_PULSE_SLOW_PERIOD_us    1000
 
-#define Z_AXIS_MAX_TRAVEL               100
+#define Z_AXIS_MAX_TRAVEL               300
 #define Z_AXIS_MM_PER_REV               10
 
 #define Z_AXIS_STEPS_PER_REV            200
@@ -176,7 +176,7 @@
 		DRV_IDRIVEP_400mA  = 0b11 << 10
 	};
 
-struct drv_config_struct {
+typedef struct drv_config_struct {
 	
 	enum drv_en enable;
 	
@@ -233,15 +233,15 @@ struct drv_config_struct {
 	/*DRIVE_IDRIVEP*/
 	enum drv_idrivep hs_current;
 	
-	};
+	} Driver_Instance_t;
 	
-void drv_ctrl_init(struct drv_config_struct *);
+void drv_ctrl_init(Driver_Instance_t *);
 
 void drv_ctrl_enable(void);
 
 void drv_ctrl_disable(void);
 
-void drv_ctrl_set_microsteps(uint8_t);
+void drv_ctrl_set_microsteps(enum drv_mode);
 
 void drv_ctrl_home(void);
 

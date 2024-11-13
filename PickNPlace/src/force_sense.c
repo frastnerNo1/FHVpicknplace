@@ -15,7 +15,7 @@ static uint16_t sForceSenseZeroValue;
 static void force_sense_read_sense(void);
 
     /* 
-	 * Reads the voltage from the INA via ADC, save the raw value in memory.
+	 * @brief: Reads the voltage from the INA via ADC, save the raw value in memory.
 	 */
 static void force_sense_read_sense() {
 	
@@ -24,10 +24,14 @@ static void force_sense_read_sense() {
 	while(adc_read(&gAdcInstance, &sForceSenseLastReadout) == STATUS_BUSY){
 		//Wait till conversion is finished
 	}
+
+    #if LOGS == 2
+    rprintf("LOG: new RAW ADC value: %d", sForceSenseLastReadout);
+    #endif
 }
 
     /* 
-	 * Read the force sensor and set the value as new zero value.
+	 * @brief: Read the force sensor and set the value as new zero value.
 	 */
 void force_sense_calibrate() {
 	
@@ -36,7 +40,8 @@ void force_sense_calibrate() {
 }
 
     /* 
-	 * Trigger a force sensor readout and converts the value to millinewton and returns it.
+	 * @brief: Trigger a force sensor readout.
+     * @returns: force value as signed number in mN
 	 */
 int16_t force_sense_get_millinewton() {
 	
@@ -48,7 +53,8 @@ int16_t force_sense_get_millinewton() {
 
 
     /*
-	 * Trigger a force sensor readout and converts the value to gram then returns it.
+	 * @brief: Trigger a force sensor readout and converts the value to gram then returns it.
+     * @brief: force value as signed number in gramm
 	 */
 int16_t force_sense_get_gramm() {
 	
@@ -57,3 +63,12 @@ int16_t force_sense_get_gramm() {
 	
 	return force_g;
 }
+
+/* This function is only used in testmode 1 to get the value of the ADC in micro volts. */
+#if TESTMODE == 1
+uint32_t force_sense_get_uV() {
+    force_sense_read_sense();
+    
+    return sForceSenseLastReadout * 244;
+}
+#endif

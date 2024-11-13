@@ -5,9 +5,8 @@
  *  Author: floro
  */ 
 
-/* This file manages the motor related functions.
- * Private functions handling bare SPÌ com functionality.
- * Public functions handles move commands
+/* Here the interconnect between the MCU and the motor driver is implemented.
+ * 
  */
 
 #include "drv_ctrl.h"
@@ -15,7 +14,7 @@
 
 enum direction {up = DIRECTION_UP, down = DIRECTION_DOWN};
 
-static struct drv_config_struct sDrvConfig;
+static Driver_Instance_t sDrvConfig;
 
 static uint32_t sActualPositionSteps;
 
@@ -32,9 +31,15 @@ static void drv_ctrl_write_stall(void);
 static void drv_ctrl_write_drive(void);
 
     /* 
-	 * Pure SPI write function, takes register and data as input and send it to the stepper controller via SPI.
+	 * @brief: Pure SPI write function.
+     * @param: register adress size = one byte
+     * @param: data size = two byte
 	 */
 static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
+
+    #if LOGS == 2
+    rprintf("LOG: transmit: %x to adress: %x", data, adress);
+    #endif
 	
 	uint8_t transfer_data_buffer[] = {((adress << 4)|(data >> 8)), (data & 0xFF)};
 	
@@ -44,8 +49,10 @@ static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 }
 
 
-    /* Pure SPI read function, takes register adress as input and reads 16 bit of data then returns 
-	 * the data on success or 1 on failure. The first 4 bits are not relevant.
+    /* 
+     * @brief: Pure SPI read function.
+     * @param: adress to read size = one byte
+     * @returns: two byte of data, the 4 MSB are not relevant
 	 */	
 static uint16_t drv_ctrl_read_cmd(uint8_t adress) {
 	
@@ -134,9 +141,10 @@ static void drv_ctrl_write_drive(){
 }
 
     /*
-	 * Initialize the stepper driver, drv_config_struct is defined in the header file.
+	 * @brief: Initialize the stepper driver
+     * @param: new config struct as Driver_Instance_t
 	 */
-void drv_ctrl_init(struct drv_config_struct * const new_config) {
+void drv_ctrl_init(Driver_Instance_t * const new_config) {
 	
 	sDrvConfig = *new_config;
 	
@@ -149,19 +157,37 @@ void drv_ctrl_init(struct drv_config_struct * const new_config) {
 	drv_ctrl_write_drive();	
 }
 
+    /* 
+     * @brief: Enable the motor driver. This has to be done prior to all move fuctions!
+     */
 void drv_ctrl_enable(){
+
+    #if LOGS == 2
+    rprintf("LOG: enable driver");
+    #endif
 	
 	sDrvConfig.enable = DRV_ENABLE;
 	drv_ctrl_write_ctrl();
 }
 
+    /*
+     * @brief: Disable the motor driver.
+     */
 void drv_ctrl_disable(){
+
+    #if LOGS == 2
+    rprintf("LOG: disable driver");
+    #endif
 	
 	sDrvConfig.enable = DRV_DISABLE;
 	drv_ctrl_write_ctrl();
 }
 
-void drv_ctrl_set_microsteps(uint8_t steps) {
+    /*
+     * @brief: Set the microstep mode. Changes also the step divider for converting mm to steps.
+     * @param: micro step mode as drv_mode
+     */
+void drv_ctrl_set_microsteps(enum drv_mode steps) {
 	
 	sDrvConfig.step_mode = steps;
 	drv_ctrl_write_ctrl();
@@ -194,15 +220,24 @@ void drv_ctrl_set_microsteps(uint8_t steps) {
 	    case(DRV_MODE_1_256):
 		    sStepDivider = 256;
 			break;
+
+        #if LOGS == 2
+        rprintf("LOG: set micro steps to: %d", sStepDivider);
+        #endif
 	}
 }
 
     /*
-     * Moves drive up until the top switch is reached.
-     * Then stops and set Position to 0.
+     * @brief:  Turn on motor in upward direction until the top switch is reached.
+     *          Then stop and set Position to 0. This function is blocking!!
      */
 void drv_ctrl_home() {
+
+    #if LOGS == 2
+    rprintf("LOG: home sequence called");
+    #endif
 	
+    //Switch to more micro steps = slower movement
 	drv_ctrl_set_microsteps(DRV_MODE_1_64);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
@@ -218,15 +253,22 @@ void drv_ctrl_home() {
 		
 }
 
-    /* Move to position, takes target position as input in mm from top. Check also for out of range position.
-	 * when move is complete set new position. This function is blocking!!
+    /* 
+     * @brief:  Move to position, check for out of range error.
+     *          When movement is complete set new position. This function is blocking!!
+     * @param:  Target positon in mm
 	 */
 void drv_ctrl_moveto(uint16_t position_mm) {
+
+    #if LOGS == 2
+    rprintf("LOG: move to %d mm", position_mm);
+    #endif
 	
 	if(position_mm > Z_AXIS_MAX_TRAVEL) {
 		return;
 	}
 	
+    //Switch to less micro steps = faster movement
 	drv_ctrl_set_microsteps(DRV_MODE_1_4);
 	
 	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM ;
@@ -247,13 +289,19 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 
 
     /*
-	 * Move till defined force is reached. Check for maximum force and maximum moving range.
-	 * when defined force is reached the drive will stop.
+	 * @brief:  Move till defined force is reached. When defined force is reached the drive will stop and retract.
+     * @param:  Target force in mN
 	 */
 void drv_ctrl_move_till_force(uint16_t force_mN) {
+
+    #if LOGS == 2
+    rprintf("LOG: move till %d mN", force_mN);
+    #endif
 	
+    //Step counter for retraction
 	uint16_t step_counter = 0;
 	
+    //Switch to more micro steps = slower movement
 	drv_ctrl_set_microsteps(DRV_MODE_1_64);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
@@ -263,11 +311,12 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 		delay_us(STEPPER_PULSE_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
 		delay_us(STEPPER_PULSE_PERIOD_us);
-		step_counter ++;
+		step_counter ++; //Count steps in downward direction
 	}
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
 	
+    //Retract same amount of steps which were counted during downward movement
 	for( ;step_counter > 0; step_counter-- ) {
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
 		delay_us(STEPPER_PULSE_PERIOD_us);

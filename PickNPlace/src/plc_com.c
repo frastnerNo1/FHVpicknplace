@@ -35,40 +35,42 @@
 /* e1 --> error 1, system not initialized                               */
 /* e2 --> error 2, wrong tool is active for this command                */
 /*                                                                      */
-/* ETX (03h) --> End of transmition                                     */
+/* X --> End of transmition                                             */
 /************************************************************************/
 
 #include "plc_com.h"
 
-const char ETX = 0x03;
+const char cTerminator = 'X';
 
-enum states {
+typedef enum states {
 	s_acknowledge   = 'a',
 	s_busy          = 'b',
 	s_unknown       = 'u',
 	s_success       = 's',
 	s_failed        = 'f',
 	s_error         = 'e'
-	};
+	} Plc_State_t;
 	
-enum commands {
+typedef enum commands {
 	c_init = 'I',
 	c_move = 'M',
 	c_tool = 'T',
 	c_force = 'F'
-	};
+	} Plc_Command_t;
 
 static uint16_t sRxBuffer;
 
-static void plc_com_transmit_status(enum states, enum errorCodes);
-static void plc_com_plc_to_state(enum commands, uint8_t);
+static void plc_com_transmit_status(Plc_State_t, Error_Code_t);
+static void plc_com_plc_to_state(Plc_Command_t, uint8_t);
 static void plc_com_itoa(int16_t, uint8_t *);
 
 
     /* 
-	 *Converts the PLC commands to predefined states.
+	 * @brief: Take the received command from UART and set the state of the state machine.
+     * @param: command as Plc_Command_t
+     * @param: specifier for move commands as uint8_t character
 	 */
-static void plc_com_plc_to_state(enum commands command, uint8_t specifier) {
+static void plc_com_plc_to_state(Plc_Command_t command, uint8_t specifier) {
 	
 	int acknowledge = 0;
 	
@@ -113,21 +115,28 @@ static void plc_com_plc_to_state(enum commands command, uint8_t specifier) {
 	}
 }
     
-
-static void plc_com_transmit_status(enum states status, enum errorCodes code) {
+    /*
+     * @brief: initiate UART transmission to PLC
+     * @param: status to transmit as Plc_State_t
+     * @param: error code as Error_Code_t, this is just evaluated if status = s_error
+     */
+static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
 
     uint8_t txBuffer[4];
+    uint8_t len = 3;
+
+    if(status == s_error) len = 4;
 	
 	txBuffer[0] = 'S';
 	txBuffer[1] = status;
-	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = ETX);
-	txBuffer[3] = ETX;
+	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = cTerminator);
+	txBuffer[3] = cTerminator;
 		
-	usart_write_buffer_wait(&gUsartInstance, txBuffer, 4);
+	usart_write_buffer_wait(&gUsartInstance, txBuffer, len);
 }
 
 	/*
-	 * Returns success message to PLC.
+	 * @brief: send success state to PLC and set state machine to idle
 	 */
 void plc_com_success() {
 	
@@ -137,16 +146,18 @@ void plc_com_success() {
 }
 
 	/*
-	 * Returns error message to PLC.
+	 * @brief: send error message to PLC and set state machine to idle
+     * @param: error code as Error_Code_t
 	 */
-void plc_com_error(enum errorCodes code) {
+void plc_com_error(Error_Code_t code) {
 	
 	plc_com_transmit_status(s_error, code);
 	set_state(idle);
 }
 
     /*
-	 * Returns the force value to the PLC.
+	 * @brief: convert force value to ascii string an send it to the PLC via UART
+     * @param: force as signed int16_t value
 	 */
 void plc_com_transmit_force(int16_t force) {
 	
@@ -155,9 +166,9 @@ void plc_com_transmit_force(int16_t force) {
     plc_com_itoa(force, txBuffer);
 	
 	txBuffer[0] = 'F';
-	txBuffer[7] = ETX;
+	txBuffer[7] = cTerminator;
 	
-	usart_write_buffer_wait(&gUsartInstance, txBuffer, 5);
+	usart_write_buffer_wait(&gUsartInstance, txBuffer, 8);
 	
 	set_state(idle);
 }
@@ -167,57 +178,66 @@ void plc_com_arm_receiver() {
 	usart_read_job(&gUsartInstance, &sRxBuffer);
 }
 
+    /*
+	 * @brief: callback function is called every time one character is received from the PLC
+	 */
 void plc_com_receive_callback() {
 	
 	static uint8_t sSymbolCounter = 0;
-	static enum commands command;
+	static Plc_Command_t command;
 	static uint8_t specifier;
-	static bool awaitEtx = false;
+	static bool awaitTerminator = false;
 	
+    /* Check if PLC is ready to take command */
 	if(get_state() != idle && get_state() != start) {
 		plc_com_transmit_status(s_busy, 0);
 		plc_com_arm_receiver();
 		return;
 	}
 	
+    /*Reset the variables*/
 	if(sSymbolCounter == 0) {
 		command = 0;
 		specifier = 0;
 	}
 	
-	if(((sRxBuffer == ETX) != awaitEtx) || sSymbolCounter > 2 ) {
+    /*If terminator is not received or unexpected terminator is received
+      or received symbols exceed the max. length an error is thrown. */
+	if(((sRxBuffer == cTerminator) != awaitTerminator) || sSymbolCounter > 2 ) {
 		plc_com_transmit_status(s_unknown, 0);
 		sSymbolCounter = 0;
 		plc_com_arm_receiver();
 		return;
 	}
 	
-	if(sRxBuffer == ETX) {
+    /*When terminator is received, the programm sets the new state.*/
+	if(sRxBuffer == cTerminator) {
 		set_state(busy);
 		plc_com_plc_to_state(command, specifier);
 		sSymbolCounter = 0;
-		awaitEtx = false;
+		awaitTerminator = false;
 		plc_com_arm_receiver();
 		return;
 	}
 	
+    /*Check first symbol received. */
 	if(sSymbolCounter == 0) {
 	    switch(sRxBuffer) {
 		    case('I'):
 			    command = c_init;
-				awaitEtx = true;
+				awaitTerminator = true;
 				break;
 			case('M'):
 			    command = c_move;
-				awaitEtx = false;
+				awaitTerminator = false;
 				break;
 			case('T'):
 			    command = c_tool;
-				awaitEtx = true;
+				awaitTerminator = true;
 				break;
 			case('F'):
 			    command = c_force;
-				awaitEtx = true;
+				awaitTerminator = true;
 				break;
 			default:
 			    plc_com_transmit_status(s_unknown, 0);
@@ -230,6 +250,7 @@ void plc_com_receive_callback() {
 		return;
 	}
 	
+    /*Check second symbol received. */
 	if(sSymbolCounter == 1){
 		switch(sRxBuffer) {
 			case('u'):
@@ -247,7 +268,7 @@ void plc_com_receive_callback() {
 				return;
 		}
 		sSymbolCounter++;
-		awaitEtx = true;
+		awaitTerminator = true;
 		plc_com_arm_receiver();
 		return;
 	}
@@ -255,9 +276,9 @@ void plc_com_receive_callback() {
 
 
     /*
-     * This funtion converts a signed 16 Bit number to ASCII characters.
-     * The functions put the ASCII characters at designated places in the array which is privided by caller function.
-     * + or - sign on second place of array, numbers on place 3 to 7.
+     * @brief: convert force from int to ascii, this includes the sign
+     * @param: signed number to convert
+     * @param: pointer to buffer for transmission
      */
 static void plc_com_itoa(int16_t number, uint8_t * buffer) {
     

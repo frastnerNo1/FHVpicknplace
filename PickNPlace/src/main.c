@@ -9,7 +9,8 @@
  */
 
 /**
- * MAIN: Config of the MCU is done here.
+ * Description:
+ * Config of the MCU peripherals is done here.
  * State machine is implemented here, the switch is done based on the system_state, which is maintained by the setter function.
  * Also the callback for incoming UART communication from the PLC is registered in this file.
  *
@@ -21,7 +22,9 @@
 #include "force_sense.h"
 #include "z_axis.h"
 #include "stepper_music.h"
-#include "rprintf.h"
+
+/* Function prototype for the loop to check the PLC com. */
+void test_loop(void);
 
 /* Global instances of the peripherals. */
 struct spi_module gSpiMasterInstance;
@@ -29,7 +32,7 @@ struct spi_slave_inst gSpiMotorController;
 struct adc_module gAdcInstance;
 struct usart_module gUsartInstance;
 
-static enum system_states sSystemState;
+static System_State_t sSystemState;
 
 static void configure_spi_master(void){
 	struct spi_config config_spi_master;
@@ -40,7 +43,7 @@ static void configure_spi_master(void){
 	spi_attach_slave(&gSpiMotorController, &motor_controller_config);
 	
 	spi_get_config_defaults(&config_spi_master);
-	config_spi_master.transfer_mode = SPI_TRANSFER_MODE_3;
+	config_spi_master.transfer_mode = SPI_TRANSFER_MODE_3;    //Acording to datasheet of the board
 	config_spi_master.data_order = SPI_DATA_ORDER_MSB;
 	config_spi_master.mux_setting = EXT1_SPI_SERCOM_MUX_SETTING;
 	config_spi_master.pinmux_pad0 = EXT1_SPI_SERCOM_PINMUX_PAD0;
@@ -76,8 +79,8 @@ static void configure_stepper_motor(void) {
 	stepper_motor_config.hs_current = DRV_IDRIVEP_100mA;
 	
 	/* Following 3 lines are for stall detection which is currently not in use*/
-	stepper_motor_config.drv_sdthr = 0x40; //Check if change is needed
-	stepper_motor_config.stall_count = DRV_SDCNT_4; //Check if change is needed
+	stepper_motor_config.drv_sdthr = 0x40;
+	stepper_motor_config.stall_count = DRV_SDCNT_4;
 	stepper_motor_config.back_emf_div = DRV_VDIV_32;
 	
 	drv_ctrl_init(&stepper_motor_config);
@@ -105,9 +108,10 @@ static void configure_adc(void) // TODO: Check  if calibration is needed
 {
 	struct adc_config config_adc;
 	adc_get_config_defaults(&config_adc);
-	config_adc.negative_input = ADC_NEGATIVE_INPUT_GND; //Maybe change to external GND Pin
+	config_adc.negative_input = ADC_NEGATIVE_INPUT_GND; //Can be muxed to external pin
 	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN0;
-	config_adc.reference = ADC_REFERENCE_AREFA;
+	config_adc.reference = ADC_REFERENCE_INT1V;
+    config_adc.accumulate_samples = ADC_ACCUMULATE_SAMPLES_1024;
 	adc_init(&gAdcInstance, ADC, &config_adc);
 	adc_enable(&gAdcInstance);
 }
@@ -133,6 +137,7 @@ static void configure_usart(void){
 	usart_enable_transceiver(&gUsartInstance, USART_TRANSCEIVER_RX);
 }
 
+/* UART callback is implemented in plc_com file*/
 static void configure_usart_callbacks(void){
 	
 	usart_register_callback(&gUsartInstance,
@@ -141,17 +146,32 @@ static void configure_usart_callbacks(void){
 	usart_enable_callback(&gUsartInstance, USART_CALLBACK_BUFFER_RECEIVED);
 }
 
-int set_state(enum system_states new_state) {
+/*
+ * @brief: changing the state variable at one single point. If system is in start state, just init is allowed.
+ * @param: new system state of type system_states.
+ * @returns: 0 when state is successfully set, 1 if change is not allowed
+ */
+int set_state(System_State_t new_state) {
 	
 	if(sSystemState == start && new_state != init){
+        #if LOGS > 0
+        rprintf("LOG: new state failed, not init.");
+        #endif
 		return EXIT_FAILURE;
 	} else {
 		sSystemState = new_state;
+        #if LOGS > 0
+        rprintf("LOG: new state = %d", sSystemState);
+        #endif
 		return EXIT_SUCCESS;
 	}
 }
 
-enum system_states get_state(void) {
+/*
+ * @brief: get the actual system state at one single point.
+ * @returns: current state of type system_states
+ */
+System_State_t get_state(void) {
 	
 	return sSystemState;
 	
@@ -164,7 +184,6 @@ int main (void)
 {
 	system_init();
 	delay_init();
-	rprintf_init();
 	configure_port_pins();
     configure_spi_master();
 	configure_stepper_motor();
@@ -172,16 +191,23 @@ int main (void)
 	configure_usart();
 	configure_usart_callbacks();
 	system_interrupt_enable_global();
+    #if LOGS != 0 || TESTMODE != 0
+    rprintf_init();
+    #endif
 	
 	sSystemState = start;
 	
 	plc_com_arm_receiver();
 	
 	while (1) {
-		
-		if(sSystemState == init) {
-			rprintf("INIT");
-		}
+
+    #if TESTMODE == 1
+    rprintf("Voltage in uVolt: %d\r\n", force_sense_get_uV());
+    delay_ms(1000);
+    #endif
+
+    #if TESTMODE == 0
+
 		switch(sSystemState) {
 			case(start):
 			case(idle):
@@ -220,5 +246,73 @@ int main (void)
 			    plc_com_success();
 				break;
 		}
+    #endif
+
+    #if TESTMODE == 2
+        test_loop();
+    #endif
 	}
+}
+
+void test_loop(){
+
+        delay_ms(1000);
+        
+        if(sSystemState == init) {
+            rprintf("INIT");
+        }
+        switch(sSystemState) {
+            case(start):
+            case(idle):
+            case(busy):
+                rprintf("IDLE\r\n");
+                break;
+            case(init):
+                rprintf("INIT called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(pick):
+                rprintf("PICK called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(place):
+                rprintf("PLACE called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(change_tool):
+                rprintf("TOOL called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(stamp):
+                rprintf("STAMP called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(soak):
+                rprintf("INK called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(close_lid):
+                rprintf("CLOSE LID called\r\n");
+                delay_ms(2000);
+                set_state(success);
+                break;
+            case(get_force):
+                rprintf("FORCE called\r\n");
+                plc_com_transmit_force(
+                force_sense_get_millinewton()
+                );
+                break;
+            case(music):
+                stepper_music_play(notes1, 15);
+                break;
+            case(success):
+                plc_com_success();
+            break;
+        }
 }
