@@ -40,6 +40,7 @@
 /************************************************************************/
 
 #include "plc_com.h"
+#include "force_sense.h"
 
 const char cTerminator = 'X';
 
@@ -75,13 +76,17 @@ static void plc_com_itoa(int16_t, uint8_t *);
 static void plc_com_plc_to_state(Plc_Command_t command, uint8_t specifier) {
 	
 	int acknowledge = 0;
+
+    if(command == c_force){
+        plc_com_transmit_force(
+        force_sense_get_millinewton()
+        );
+        return;
+    }
 	
 	switch(command){
 		case(c_init):
 			acknowledge = set_state(init);
-			break;
-		case(c_force):
-			acknowledge = set_state(get_force);
 			break;
 		case(c_tool):
 		    acknowledge = set_state(change_tool);
@@ -146,8 +151,9 @@ static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
 	 */
 void plc_com_success() {
 	
+    delay_ms(100); // Delay to ensure PLC finished at least one cycle
 	plc_com_transmit_status(s_success, 0);
-    delay_ms(2000);
+    delay_ms(100); // Delay to ensure PLC finished at least one cycle
     plc_com_transmit_status(s_idle, 0);
 	set_state(idle);
 	
@@ -187,13 +193,17 @@ void plc_com_transmit_force(int16_t force) {
 
 void plc_com_arm_receiver() {
 	
+    #if LOGS == 2
+    rprintf("UART armed!");
+    #endif
+
 	usart_read_job(&gUsartInstance, &sRxBuffer);
 }
 
     /*
 	 * @brief: callback function is called every time one character is received from the PLC
 	 */
-void plc_com_receive_callback() {
+void plc_com_receive_callback(struct usart_module* const usart_instance) {
 
     #if LOGS == 2
     rprintf("UART Callback fired! Symbol: %c\r\n", sRxBuffer);

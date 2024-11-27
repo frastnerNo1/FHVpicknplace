@@ -16,7 +16,10 @@ enum direction {up = DIRECTION_UP, down = DIRECTION_DOWN};
 
 static Driver_Instance_t sDrvConfig;
 
-static uint32_t sActualPositionSteps;
+static uint16_t sActualPositionSteps;
+static volatile uint16_t sStepcounter;
+static volatile uint16_t sPulsePeriod;
+static volatile uint16_t sTargetPeriod;
 
 static uint16_t sStepDivider;
 
@@ -29,6 +32,7 @@ static void drv_ctrl_write_blank(void);
 static void drv_ctrl_write_decay(void);
 static void drv_ctrl_write_stall(void);
 static void drv_ctrl_write_drive(void);
+static inline void drv_ctrl_set_period(void);
 
     /* 
 	 * @brief: Pure SPI write function.
@@ -244,15 +248,13 @@ void drv_ctrl_home() {
     sDrvConfig.drv_torque = 0x28;
     drv_ctrl_write_torque();
 	
-	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, PIN_POLARITY_UP);
+    tc_start_counter(&pwm_timer);
 	while (port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN))
 	{
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
+		//wait till home pos is reached
 	}
-	
+	tc_stop_counter(&pwm_timer);
 	sActualPositionSteps = 0;
 
     sDrvConfig.drv_torque = 0x14;
@@ -271,7 +273,7 @@ void drv_ctrl_moveto(uint16_t position_mm) {
     rprintf("LOG: move to %d mm\r\n", position_mm);
     #endif
 
-    uint16_t period = STEPPER_PULSE_SLOW_PERIOD_us;
+    uint16_t steps = 0;
 	
 	if(position_mm > Z_AXIS_MAX_TRAVEL) {
 		    #if LOGS == 2
@@ -289,24 +291,24 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM ;
 	
 	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
-	uint32_t steps = abs(sActualPositionSteps - target_steps)*sStepDivider;
+	steps = abs(sActualPositionSteps - target_steps)*sStepDivider;
 	    #if LOGS == 2
 	    rprintf("LOG: travel %d steps in dir: %d\r\n", steps, dir);
 	    #endif
 	
-	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
-	for(uint32_t i = 0; i <= steps; i++){
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(period);
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(period);
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir == up ? PIN_POLARITY_UP : PIN_POLARITY_DOWN);
+    sStepcounter = 0;
+    sPulsePeriod = STEPPER_PULSE_SLOW_PERIOD_us;
+    sTargetPeriod = STEPPER_PULSE_PERIOD_us;
+    drv_ctrl_set_period();
+	tc_start_counter(&pwm_timer);
 
-        if(period > STEPPER_PULSE_PERIOD_us){
-            period -= 2;
-        }
-	}
+    while(sStepcounter < steps){
+        //Wait till drive finished movement
+    }
 	
-	sActualPositionSteps = target_steps;
+	sActualPositionSteps += (sStepcounter * dir);
+    sStepcounter = 0;
     
     sDrvConfig.drv_torque = 0x14;
     drv_ctrl_write_torque();
@@ -322,9 +324,8 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
     #if LOGS == 2
     rprintf("LOG: move till %d mN\r\n", force_mN);
     #endif
-	
-    //Step counter for retraction
-	uint16_t step_counter = 0;
+
+    int16_t steps = 0;
 	
     //Switch to more micro steps = slower movement
 	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
@@ -332,30 +333,49 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 	sDrvConfig.drv_torque = 0x28;
 	drv_ctrl_write_torque();
 	
-	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, PIN_POLARITY_DOWN);
 	
+    sStepcounter = 0;
+    sPulsePeriod = STEPPER_PULSE_SLOW_PERIOD_us;
+    sTargetPeriod = STEPPER_PULSE_SLOW_PERIOD_us;
+    drv_ctrl_set_period();
+    tc_start_counter(&pwm_timer);
 	while(force_sense_get_millinewton() < force_mN) {
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
-		step_counter ++; //Count steps in downward direction
+        // Wait till desired force is reached
 	}
+    tc_stop_counter(&pwm_timer);
+    steps = sStepcounter;
+    sStepcounter = 0;
 	
-	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
+	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, PIN_POLARITY_UP);
 	
     //Retract same amount of steps which were counted during downward movement
-	for( ;step_counter > 0; step_counter-- ) {
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
-		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
+    tc_start_counter(&pwm_timer);
+	while(sStepcounter < steps) {
+		// Wait till retracted
 	}
+    tc_stop_counter(&pwm_timer);
+
+    sActualPositionSteps += (steps - sStepcounter);
 	
 	sDrvConfig.drv_torque = 0x14;
 	drv_ctrl_write_torque();
 }
 
 void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
+    rprintf("PWM Callback!");
     if(get_state() == init) return;
+    
+    sStepcounter++;
+
+    if(sPulsePeriod > sTargetPeriod){
+        sPulsePeriod -= 10;
+        drv_ctrl_set_period();
+    }
+}
+
+static inline void drv_ctrl_set_period(){
+    
+    tc_set_compare_value(&pwm_timer, TC_COMPARE_CAPTURE_CHANNEL_0, PERIOD_TO_CCVAL(sPulsePeriod));
+    tc_set_compare_value(&pwm_timer, TC_COMPARE_CAPTURE_CHANNEL_1, PERIOD_TO_CCVAL(sPulsePeriod)/PWM_START_DUTY);
 }

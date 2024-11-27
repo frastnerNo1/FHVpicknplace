@@ -32,7 +32,6 @@ struct spi_slave_inst gSpiMotorController;
 struct adc_module gAdcInstance;
 struct usart_module gUsartInstance;
 struct tc_module pwm_timer;
-struct tc_module step_timer;
 
 static volatile System_State_t sSystemState;
 
@@ -92,24 +91,20 @@ static void configure_stepper_motor(void) {
 
 static void configure_timer(void){
     struct tc_config pwm_timer_config;
-    struct tc_config step_timer_config;
 
     tc_get_config_defaults(&pwm_timer_config);
     pwm_timer_config.counter_size = TC_COUNTER_SIZE_16BIT;
     pwm_timer_config.wave_generation = TC_WAVE_GENERATION_MATCH_PWM_MODE;
-    pwm_timer_config.counter_16_bit.compare_capture_channel[0] = PERIOD_TO_CCVAL(PWM_START_PERIOD, 1);
-    pwm_timer_config.counter_16_bit.compare_capture_channel[1] = PERIOD_TO_CCVAL(PWM_START_PERIOD, 1)*PWM_START_DUTY;
+    pwm_timer_config.counter_16_bit.compare_capture_channel[0] = PERIOD_TO_CCVAL(PWM_START_PERIOD);
+    pwm_timer_config.counter_16_bit.compare_capture_channel[1] = PERIOD_TO_CCVAL(PWM_START_PERIOD)/PWM_START_DUTY;
     
     pwm_timer_config.pwm_channel[1].enabled = true;
     pwm_timer_config.pwm_channel[1].pin_mux = PINMUX_PA21E_TC7_WO1;
     pwm_timer_config.pwm_channel[1].pin_out = MOTOR_CONTROLLER_DIR_PIN;
 
-    tc_init(&pwm_timer, &TC7, &pwm_timer_config);
-}
-
-static void configure_timer_callback(void){
-    tc_register_callback(&pwm_timer,,TC_CALLBACK_CC_CHANNEL1);
-    tc_enable_callback(&pwm_timer, TC_CALLBACK_CC_CHANNEL1);
+    tc_init(&pwm_timer, TC7, &pwm_timer_config);
+    tc_enable(&pwm_timer);
+    tc_stop_counter(&pwm_timer);
 }
 
 static void configure_port_pins(void)
@@ -119,7 +114,6 @@ static void configure_port_pins(void)
 	config_port_pin.direction  = PORT_PIN_DIR_OUTPUT;
 	config_port_pin.input_pull = PORT_PIN_PULL_DOWN;
 	port_pin_set_config(MOTOR_CONTROLLER_DIR_PIN, &config_port_pin);
-	port_pin_set_config(MOTOR_CONTROLLER_STP_PIN, &config_port_pin);
 	port_pin_set_config(MOTOR_CONTROLLER_SS_PIN, &config_port_pin);
 	port_pin_set_config(MAGNET_SWITCH_PIN, &config_port_pin);
 	config_port_pin.direction = PORT_PIN_DIR_INPUT;
@@ -159,6 +153,11 @@ static void configure_usart(void){
 	
 	usart_enable_transceiver(&gUsartInstance, USART_TRANSCEIVER_TX);
 	usart_enable_transceiver(&gUsartInstance, USART_TRANSCEIVER_RX);
+}
+
+static void configure_timer_callback(void){
+    tc_register_callback(&pwm_timer,drv_ctrl_pwm_callback ,TC_CALLBACK_CC_CHANNEL1);
+    tc_enable_callback(&pwm_timer, TC_CALLBACK_CC_CHANNEL1);
 }
 
 /* UART callback is implemented in plc_com file*/
@@ -220,6 +219,8 @@ int main (void)
 	configure_adc();
 	configure_usart();
 	configure_usart_callbacks();
+    configure_timer();
+    configure_timer_callback();
 	system_interrupt_enable_global();
 	
 	sSystemState = start;

@@ -11,8 +11,11 @@
 
 #include "main.h"
 
-#define DIRECTION_UP                    false
-#define DIRECTION_DOWN                  !DIRECTION_UP
+#define DIRECTION_UP                    -1
+#define DIRECTION_DOWN                  1
+
+#define PIN_POLARITY_UP                 false
+#define PIN_POLARITY_DOWN               true
 
 #define STEPPER_PULSE_PERIOD_us         30
 #define STEPPER_PULSE_SLOW_PERIOD_us    300
