@@ -1,6 +1,7 @@
-src/ASF/sam0/drivers/tc/tc_sam_d_r_h/tc.d \
- src/ASF/sam0/drivers/tc/tc_sam_d_r_h/tc.o: \
- ../src/ASF/sam0/drivers/tc/tc_sam_d_r_h/tc.c \
+src/ASF/sam0/drivers/tc/tc_interrupt.d \
+ src/ASF/sam0/drivers/tc/tc_interrupt.o: \
+ ../src/ASF/sam0/drivers/tc/tc_interrupt.c \
+ ../src/ASF/sam0/drivers/tc/tc_interrupt.h \
  ../src/ASF/sam0/drivers/tc/tc.h ../src/ASF/sam0/utils/compiler.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\lib\gcc\arm-none-eabi\6.3.1\include\stddef.h \
  ../src/ASF/common/utils/parts.h ../src/ASF/sam0/utils/status_codes.h \
@@ -106,9 +107,9 @@ src/ASF/sam0/drivers/tc/tc_sam_d_r_h/tc.d \
  ../src/ASF/sam0/drivers/system/clock/clock_samd20/clock_feature.h \
  ../src/ASF/sam0/drivers/system/pinmux/pinmux.h \
  ../src/ASF/sam0/drivers/system/interrupt/system_interrupt.h \
- ../src/ASF/sam0/drivers/system/interrupt/system_interrupt_samd20/system_interrupt_features.h \
- ../src/ASF/sam0/drivers/tc/tc_interrupt.h \
- ../src/ASF/sam0/drivers/tc/tc.h
+ ../src/ASF/sam0/drivers/system/interrupt/system_interrupt_samd20/system_interrupt_features.h
+
+../src/ASF/sam0/drivers/tc/tc_interrupt.h:
 
 ../src/ASF/sam0/drivers/tc/tc.h:
 
@@ -325,7 +326,3 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\arm\arm-gnu-toolchain\arm-no
 ../src/ASF/sam0/drivers/system/interrupt/system_interrupt.h:
 
 ../src/ASF/sam0/drivers/system/interrupt/system_interrupt_samd20/system_interrupt_features.h:
-
-../src/ASF/sam0/drivers/tc/tc_interrupt.h:
-
-../src/ASF/sam0/drivers/tc/tc.h:

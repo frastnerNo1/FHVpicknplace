@@ -31,6 +31,8 @@ struct spi_module gSpiMasterInstance;
 struct spi_slave_inst gSpiMotorController;
 struct adc_module gAdcInstance;
 struct usart_module gUsartInstance;
+struct tc_module pwm_timer;
+struct tc_module step_timer;
 
 static volatile System_State_t sSystemState;
 
@@ -43,7 +45,7 @@ static void configure_spi_master(void){
 	spi_attach_slave(&gSpiMotorController, &motor_controller_config);
 	
 	spi_get_config_defaults(&config_spi_master);
-	config_spi_master.transfer_mode = SPI_TRANSFER_MODE_3;    //Acording to datasheet of the board
+	config_spi_master.transfer_mode = SPI_TRANSFER_MODE_3;    //According to data sheet of the board
 	config_spi_master.data_order = SPI_DATA_ORDER_MSB;
 	config_spi_master.mux_setting = EXT1_SPI_SERCOM_MUX_SETTING;
 	config_spi_master.pinmux_pad0 = EXT1_SPI_SERCOM_PINMUX_PAD0;
@@ -86,6 +88,28 @@ static void configure_stepper_motor(void) {
 	drv_ctrl_init(&stepper_motor_config);
 	drv_ctrl_enable();
 	
+}
+
+static void configure_timer(void){
+    struct tc_config pwm_timer_config;
+    struct tc_config step_timer_config;
+
+    tc_get_config_defaults(&pwm_timer_config);
+    pwm_timer_config.counter_size = TC_COUNTER_SIZE_16BIT;
+    pwm_timer_config.wave_generation = TC_WAVE_GENERATION_MATCH_PWM_MODE;
+    pwm_timer_config.counter_16_bit.compare_capture_channel[0] = PERIOD_TO_CCVAL(PWM_START_PERIOD, 1);
+    pwm_timer_config.counter_16_bit.compare_capture_channel[1] = PERIOD_TO_CCVAL(PWM_START_PERIOD, 1)*PWM_START_DUTY;
+    
+    pwm_timer_config.pwm_channel[1].enabled = true;
+    pwm_timer_config.pwm_channel[1].pin_mux = PINMUX_PA21E_TC7_WO1;
+    pwm_timer_config.pwm_channel[1].pin_out = MOTOR_CONTROLLER_DIR_PIN;
+
+    tc_init(&pwm_timer, &TC7, &pwm_timer_config);
+}
+
+static void configure_timer_callback(void){
+    tc_register_callback(&pwm_timer,,TC_CALLBACK_CC_CHANNEL1);
+    tc_enable_callback(&pwm_timer, TC_CALLBACK_CC_CHANNEL1);
 }
 
 static void configure_port_pins(void)

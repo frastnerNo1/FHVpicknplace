@@ -249,4 +249,6 @@ void drv_ctrl_moveto(uint16_t);
 
 void drv_ctrl_move_till_force(uint16_t);
 
+void drv_ctrl_pwm_callback(struct tc_module *);
+
 #endif /* DRV_CTRL_H_ */

@@ -355,3 +355,7 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 	sDrvConfig.drv_torque = 0x14;
 	drv_ctrl_write_torque();
 }
+
+void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
+    if(get_state() == init) return;
+}

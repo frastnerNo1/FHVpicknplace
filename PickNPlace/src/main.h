@@ -46,6 +46,12 @@
 
 #define ADC_REFERENCE_PIN				EXT3_PIN_4  //NOT IN USE
 
+#define PWM_START_PERIOD                 300     //Initial period of PWM signal in MS
+#define PWM_START_DUTY                  100/50  //Initial duty cycle of PWM signal in %
+#define CLK_FREQ                        32768UL //Clock freequency of main clock
+
+#define PERIOD_TO_CCVAL(a, b)           ((a * (CLK_FREQ / b)) / 1000) //ARGS: a = period in MS, b = prescaler
+
 typedef enum system_states {
 	start,
 	idle,

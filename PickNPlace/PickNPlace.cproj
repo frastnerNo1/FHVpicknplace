@@ -33,13 +33,13 @@
         <options>
           <option id="common.boards" value="Add" config="" content-id="Atmel.ASF" />
           <option id="common.services.basic.serial" value="Add" config="" content-id="Atmel.ASF" />
+          <option id="common2.services.delay" value="Add" config="systick" content-id="Atmel.ASF" />
           <option id="sam0.drivers.adc" value="Add" config="polled" content-id="Atmel.ASF" />
           <option id="sam0.drivers.port" value="Add" config="" content-id="Atmel.ASF" />
           <option id="sam0.drivers.sercom.spi" value="Add" config="polled" content-id="Atmel.ASF" />
           <option id="sam0.drivers.sercom.usart" value="Add" config="callback" content-id="Atmel.ASF" />
           <option id="sam0.drivers.system" value="Add" config="" content-id="Atmel.ASF" />
-          <option id="sam0.drivers.tc" value="Add" config="polled" content-id="Atmel.ASF" />
-          <option id="common2.services.delay" value="Add" config="systick" content-id="Atmel.ASF" />
+          <option id="sam0.drivers.tc" value="Add" config="callback" content-id="Atmel.ASF" />
           <option id="common.applications.user_application.xplained_pro2" value="Add" config="" content-id="Atmel.ASF" />
           <option id="common.utils" value="Add" config="" content-id="Atmel.ASF" />
           <option id="sam0.utils.cmsis.samd20.source.template" value="Add" config="" content-id="Atmel.ASF" />
@@ -229,6 +229,8 @@
           <file path="src/ASF/common2/services/delay/sam0/systick_counter.c" framework="" version="3.52.0" source="common2\services\delay\sam0\systick_counter.c" changed="False" content-id="Atmel.ASF" />
           <file path="src/ASF/common2/services/delay/delay.h" framework="" version="3.52.0" source="common2\services\delay\delay.h" changed="False" content-id="Atmel.ASF" />
           <file path="src/ASF/common2/services/delay/sam0/systick_counter.h" framework="" version="3.52.0" source="common2\services\delay\sam0\systick_counter.h" changed="False" content-id="Atmel.ASF" />
+          <file path="src/ASF/sam0/drivers/tc/tc_interrupt.c" framework="" version="3.52.0" source="sam0\drivers\tc\tc_interrupt.c" changed="False" content-id="Atmel.ASF" />
+          <file path="src/ASF/sam0/drivers/tc/tc_interrupt.h" framework="" version="3.52.0" source="sam0\drivers\tc\tc_interrupt.h" changed="False" content-id="Atmel.ASF" />
         </files>
         <documentation help="https://asf.microchip.com/docs/3.52.0/common.applications.user_application.xplained_pro2.samd20_xplained_pro/html/index.html" />
         <offline-documentation help="" />
@@ -273,8 +275,8 @@
       <Value>ADC_CALLBACK_MODE=false</Value>
       <Value>SPI_CALLBACK_MODE=false</Value>
       <Value>USART_CALLBACK_MODE=true</Value>
-      <Value>TC_ASYNC=false</Value>
       <Value>SYSTICK_MODE</Value>
+      <Value>TC_ASYNC=true</Value>
     </ListValues>
   </armgcc.compiler.symbols.DefSymbols>
   <armgcc.compiler.directories.IncludePaths>
@@ -372,7 +374,7 @@
       <Value>../src/ASF/common2/services/delay/sam0</Value>
     </ListValues>
   </armgcc.assembler.general.IncludePaths>
-  <armgcc.preprocessingassembler.general.AssemblerFlags>-DARM_MATH_CM0PLUS=true -DBOARD=SAMD20_XPLAINED_PRO -D__SAMD20J18__ -DADC_CALLBACK_MODE=false -DSPI_CALLBACK_MODE=false -DUSART_CALLBACK_MODE=true -DTC_ASYNC=false -DSYSTICK_MODE</armgcc.preprocessingassembler.general.AssemblerFlags>
+  <armgcc.preprocessingassembler.general.AssemblerFlags>-DARM_MATH_CM0PLUS=true -DBOARD=SAMD20_XPLAINED_PRO -D__SAMD20J18__ -DADC_CALLBACK_MODE=false -DSPI_CALLBACK_MODE=false -DUSART_CALLBACK_MODE=true -DSYSTICK_MODE -DTC_ASYNC=true</armgcc.preprocessingassembler.general.AssemblerFlags>
   <armgcc.preprocessingassembler.general.IncludePaths>
     <ListValues>
       <Value>../src/ASF/common/boards</Value>
@@ -431,8 +433,8 @@
       <Value>ADC_CALLBACK_MODE=false</Value>
       <Value>SPI_CALLBACK_MODE=false</Value>
       <Value>USART_CALLBACK_MODE=true</Value>
-      <Value>TC_ASYNC=false</Value>
       <Value>SYSTICK_MODE</Value>
+      <Value>TC_ASYNC=true</Value>
     </ListValues>
   </armgcc.compiler.symbols.DefSymbols>
   <armgcc.compiler.directories.IncludePaths>
@@ -533,7 +535,7 @@
     </ListValues>
   </armgcc.assembler.general.IncludePaths>
   <armgcc.assembler.debugging.DebugLevel>Default (-g)</armgcc.assembler.debugging.DebugLevel>
-  <armgcc.preprocessingassembler.general.AssemblerFlags>-DARM_MATH_CM0PLUS=true -DBOARD=SAMD20_XPLAINED_PRO -D__SAMD20J18__ -DADC_CALLBACK_MODE=false -DSPI_CALLBACK_MODE=false -DUSART_CALLBACK_MODE=true -DTC_ASYNC=false -DSYSTICK_MODE</armgcc.preprocessingassembler.general.AssemblerFlags>
+  <armgcc.preprocessingassembler.general.AssemblerFlags>-DARM_MATH_CM0PLUS=true -DBOARD=SAMD20_XPLAINED_PRO -D__SAMD20J18__ -DADC_CALLBACK_MODE=false -DSPI_CALLBACK_MODE=false -DUSART_CALLBACK_MODE=true -DSYSTICK_MODE -DTC_ASYNC=true</armgcc.preprocessingassembler.general.AssemblerFlags>
   <armgcc.preprocessingassembler.general.IncludePaths>
     <ListValues>
       <Value>../src/ASF/common/boards</Value>
@@ -730,7 +732,19 @@
     <None Include="src\ASF\sam0\drivers\tc\tc.h">
       <SubType>compile</SubType>
     </None>
+    <Compile Include="src\ASF\sam0\drivers\tc\tc_interrupt.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <None Include="src\ASF\sam0\drivers\tc\tc_interrupt.h">
+      <SubType>compile</SubType>
+    </None>
     <Compile Include="src\ASF\sam0\drivers\tc\tc_sam_d_r_h\tc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\custom_timer.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\custom_timer.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\drv_ctrl.c">
