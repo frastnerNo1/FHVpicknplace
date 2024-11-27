@@ -31,6 +31,7 @@
 /* b --> busy, can't process command                                    */
 /* u --> unknown, command is not known                                  */
 /* s --> success, command successfully fullfiled                        */
+/* i --> idle, MCU returned to idle state                               */
 /* f --> failed, command could not be fullfiled                         */
 /* e1 --> error 1, system not initialized                               */
 /* e2 --> error 2, wrong tool is active for this command                */
@@ -47,6 +48,7 @@ typedef enum states {
 	s_busy          = 'b',
 	s_unknown       = 'u',
 	s_success       = 's',
+    s_idle          = 'i',
 	s_failed        = 'f',
 	s_error         = 'e'
 	} Plc_State_t;
@@ -131,6 +133,10 @@ static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
 	txBuffer[1] = status;
 	(status == s_error) ? (txBuffer[2] = code) : (txBuffer[2] = cTerminator);
 	txBuffer[3] = cTerminator;
+	
+    #if LOGS == 2
+    rprintf("UART send to PLC: %s\r\n", txBuffer);
+    #endif
 		
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, len);
 }
@@ -141,6 +147,8 @@ static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
 void plc_com_success() {
 	
 	plc_com_transmit_status(s_success, 0);
+    delay_ms(2000);
+    plc_com_transmit_status(s_idle, 0);
 	set_state(idle);
 	
 }
@@ -165,8 +173,12 @@ void plc_com_transmit_force(int16_t force) {
 
     plc_com_itoa(force, txBuffer);
 	
-	txBuffer[0] = 'F';
-	txBuffer[7] = cTerminator;
+	txBuffer[0] = 'f';
+	txBuffer[7] = 'Q';
+
+    #if LOGS == 2
+    rprintf("LOG: force send to PLC: %s", txBuffer);
+    #endif
 	
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, 8);
 	
@@ -182,6 +194,10 @@ void plc_com_arm_receiver() {
 	 * @brief: callback function is called every time one character is received from the PLC
 	 */
 void plc_com_receive_callback() {
+
+    #if LOGS == 2
+    rprintf("UART Callback fired! Symbol: %c\r\n", sRxBuffer);
+    #endif
 	
 	static uint8_t sSymbolCounter = 0;
 	static Plc_Command_t command;
@@ -204,6 +220,11 @@ void plc_com_receive_callback() {
     /*If terminator is not received or unexpected terminator is received
       or received symbols exceed the max. length an error is thrown. */
 	if(((sRxBuffer == cTerminator) != awaitTerminator) || sSymbolCounter > 2 ) {
+        
+        #if LOGS == 2
+        rprintf("Invalid command!\r\n");
+        #endif
+
 		plc_com_transmit_status(s_unknown, 0);
 		sSymbolCounter = 0;
 		plc_com_arm_receiver();
@@ -212,6 +233,11 @@ void plc_com_receive_callback() {
 	
     /*When terminator is received, the programm sets the new state.*/
 	if(sRxBuffer == cTerminator) {
+
+        #if LOGS == 2
+        rprintf("Valid command received. %c,%c\r\n", command, specifier);
+        #endif
+
 		set_state(busy);
 		plc_com_plc_to_state(command, specifier);
 		sSymbolCounter = 0;
@@ -240,6 +266,9 @@ void plc_com_receive_callback() {
 				awaitTerminator = true;
 				break;
 			default:
+                #if LOGS == 2
+                rprintf("Invalid command! \r\n");
+                #endif
 			    plc_com_transmit_status(s_unknown, 0);
 				sSymbolCounter = 0;
 				plc_com_arm_receiver();
@@ -262,6 +291,9 @@ void plc_com_receive_callback() {
 			    specifier = sRxBuffer;
 			    break;
 			default:
+                #if LOGS == 2
+                rprintf("Invalid command!\r\n");
+                #endif
 				plc_com_transmit_status(s_unknown, 0);
 				sSymbolCounter = 0;
 				plc_com_arm_receiver();
@@ -283,19 +315,21 @@ void plc_com_receive_callback() {
 static void plc_com_itoa(int16_t number, uint8_t * buffer) {
     
     if(number < 0) {
-        buffer[1] = '-';
+        *(buffer + 1) = '-';
     } else {
-        buffer[1] = '+';
+        *(buffer + 1) = '+';
     }
 
-    buffer[2] = '0' + (number / 10000);
+    number = abs(number);
+
+    *(buffer + 2) = '0' + (number / 10000);
     number %= 10000;
-    buffer[3] = '0' + (number / 1000);
+    *(buffer + 3) = '0' + (number / 1000);
     number %= 1000;
-    buffer[4] = '0' + (number / 100);
+    *(buffer + 4) = '0' + (number / 100);
     number %= 100;
-    buffer[5] = '0' + (number / 10);
+    *(buffer + 5) = '0' + (number / 10);
     number %= 10;
-    buffer[6] = '0' + number;
+    *(buffer + 6) = '0' + number;
 }
 

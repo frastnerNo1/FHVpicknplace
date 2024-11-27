@@ -38,7 +38,7 @@ static void drv_ctrl_write_drive(void);
 static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 
     #if LOGS == 2
-    rprintf("LOG: transmit: %x to adress: %x", data, adress);
+    rprintf("LOG: transmit: %x to adress: %x\r\n", data, adress);
     #endif
 	
 	uint8_t transfer_data_buffer[] = {((adress << 4)|(data >> 8)), (data & 0xFF)};
@@ -154,7 +154,8 @@ void drv_ctrl_init(Driver_Instance_t * const new_config) {
 	drv_ctrl_write_blank();			
 	drv_ctrl_write_decay();			
 	drv_ctrl_write_stall();			
-	drv_ctrl_write_drive();	
+	drv_ctrl_write_drive();
+    drv_ctrl_set_microsteps(new_config->step_mode);
 }
 
     /* 
@@ -163,7 +164,7 @@ void drv_ctrl_init(Driver_Instance_t * const new_config) {
 void drv_ctrl_enable(){
 
     #if LOGS == 2
-    rprintf("LOG: enable driver");
+    rprintf("LOG: enable driver\r\n");
     #endif
 	
 	sDrvConfig.enable = DRV_ENABLE;
@@ -176,7 +177,7 @@ void drv_ctrl_enable(){
 void drv_ctrl_disable(){
 
     #if LOGS == 2
-    rprintf("LOG: disable driver");
+    rprintf("LOG: disable driver\r\n");
     #endif
 	
 	sDrvConfig.enable = DRV_DISABLE;
@@ -222,7 +223,7 @@ void drv_ctrl_set_microsteps(enum drv_mode steps) {
 			break;
 
         #if LOGS == 2
-        rprintf("LOG: set micro steps to: %d", sStepDivider);
+        rprintf("LOG: set micro steps to: %d\r\n", sStepDivider);
         #endif
 	}
 }
@@ -234,22 +235,28 @@ void drv_ctrl_set_microsteps(enum drv_mode steps) {
 void drv_ctrl_home() {
 
     #if LOGS == 2
-    rprintf("LOG: home sequence called");
+    rprintf("LOG: home sequence called\r\n");
     #endif
 	
     //Switch to more micro steps = slower movement
-	drv_ctrl_set_microsteps(DRV_MODE_1_64);
+	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
+
+    sDrvConfig.drv_torque = 0x28;
+    drv_ctrl_write_torque();
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
 	while (port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN))
 	{
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 	}
 	
 	sActualPositionSteps = 0;
+
+    sDrvConfig.drv_torque = 0x14;
+    drv_ctrl_write_torque();
 		
 }
 
@@ -261,30 +268,48 @@ void drv_ctrl_home() {
 void drv_ctrl_moveto(uint16_t position_mm) {
 
     #if LOGS == 2
-    rprintf("LOG: move to %d mm", position_mm);
+    rprintf("LOG: move to %d mm\r\n", position_mm);
     #endif
+
+    uint16_t period = STEPPER_PULSE_SLOW_PERIOD_us;
 	
 	if(position_mm > Z_AXIS_MAX_TRAVEL) {
+		    #if LOGS == 2
+		    rprintf("Exceed max travel!\r\n", position_mm);
+		    #endif
 		return;
 	}
 	
     //Switch to less micro steps = faster movement
-	drv_ctrl_set_microsteps(DRV_MODE_1_4);
+	//drv_ctrl_set_microsteps(DRV_MODE_1_8);
+
+    sDrvConfig.drv_torque = 0x80;
+    drv_ctrl_write_torque();
 	
 	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM ;
 	
 	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
 	uint32_t steps = abs(sActualPositionSteps - target_steps)*sStepDivider;
+	    #if LOGS == 2
+	    rprintf("LOG: travel %d steps in dir: %d\r\n", steps, dir);
+	    #endif
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
 	for(uint32_t i = 0; i <= steps; i++){
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(period);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(period);
+
+        if(period > STEPPER_PULSE_PERIOD_us){
+            period -= 2;
+        }
 	}
 	
-	sActualPositionSteps = target_steps;	
+	sActualPositionSteps = target_steps;
+    
+    sDrvConfig.drv_torque = 0x14;
+    drv_ctrl_write_torque();
 }
 
 
@@ -295,22 +320,25 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 void drv_ctrl_move_till_force(uint16_t force_mN) {
 
     #if LOGS == 2
-    rprintf("LOG: move till %d mN", force_mN);
+    rprintf("LOG: move till %d mN\r\n", force_mN);
     #endif
 	
     //Step counter for retraction
 	uint16_t step_counter = 0;
 	
     //Switch to more micro steps = slower movement
-	drv_ctrl_set_microsteps(DRV_MODE_1_64);
+	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
+	
+	sDrvConfig.drv_torque = 0x28;
+	drv_ctrl_write_torque();
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
 	
 	while(force_sense_get_millinewton() < force_mN) {
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 		step_counter ++; //Count steps in downward direction
 	}
 	
@@ -319,8 +347,11 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
     //Retract same amount of steps which were counted during downward movement
 	for( ;step_counter > 0; step_counter-- ) {
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, true);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 		port_pin_set_output_level(MOTOR_CONTROLLER_STP_PIN, false);
-		delay_us(STEPPER_PULSE_PERIOD_us);
+		delay_us(STEPPER_PULSE_SLOW_PERIOD_us);
 	}
+	
+	sDrvConfig.drv_torque = 0x14;
+	drv_ctrl_write_torque();
 }

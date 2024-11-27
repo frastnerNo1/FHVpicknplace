@@ -15,10 +15,12 @@
  * 1 = FORCE test, ADC output is printed to console every second
  * 2 = COM test, UART inputs are plotted on the console
  */
-#define TESTMODE    2
+#define TESTMODE    0
 
 /*Global enable for console logs: 0 = OFF, 1 = LOG, 2 = VERBOSE LOG*/
-#define LOGS        1
+#define LOGS        2
+
+#define TEST_DELAY 5000
 
 #include <asf.h>
 #include <stdint.h>

@@ -31,7 +31,7 @@ static void z_axis_drop_tool(void);
 void z_axis_home() {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_AXIS_HOMING");
+    rprintf("LOG: Z_AXIS_HOMING\r\n");
     #endif
 	
 	drv_ctrl_home();
@@ -46,7 +46,7 @@ void z_axis_home() {
 void z_axis_pick_sample(){
 
     #if LOGS >= 1
-    rprintf("LOG: Z_PICK_SAMPLE");
+    rprintf("LOG: Z_PICK_SAMPLE\r\n");
     #endif
 	
 	if(sTool == stamp_tool) {
@@ -67,7 +67,7 @@ void z_axis_pick_sample(){
 void z_axis_place_sample(){
 
     #if LOGS >= 1
-    rprintf("LOG: Z_PLACE_SAMPLE");
+    rprintf("LOG: Z_PLACE_SAMPLE\r\n");
     #endif
 	
 	if(sTool == stamp_tool) {
@@ -88,7 +88,7 @@ void z_axis_place_sample(){
 void z_axis_soak_stamp() {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_SOAK_STAMP");
+    rprintf("LOG: Z_SOAK_STAMP\r\n");
     #endif
 	
 	if(sTool == pick_tool) {
@@ -109,7 +109,7 @@ void z_axis_soak_stamp() {
 void z_axis_stamp() {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_STAMP");
+    rprintf("LOG: Z_STAMP\r\n");
     #endif
 	
 	if(sTool == pick_tool) {
@@ -130,7 +130,7 @@ void z_axis_stamp() {
 static void z_axis_grab_tool(void) {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_GRAB_TOOL");
+    rprintf("LOG: Z_GRAB_TOOL\r\n");
     #endif
 	
 	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
@@ -146,7 +146,7 @@ static void z_axis_grab_tool(void) {
 static void z_axis_drop_tool(void) {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_DROP_TOOL");
+    rprintf("LOG: Z_DROP_TOOL\r\n");
     #endif
 	
 	drv_ctrl_moveto(TOOL_DROP_HEIGHT_mm);
@@ -162,7 +162,7 @@ static void z_axis_drop_tool(void) {
 void z_axis_close_lid() {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_CLOSE_LID");
+    rprintf("LOG: Z_CLOSE_LID\r\n");
     #endif
 	
 	if(sTool == stamp_tool) {
@@ -182,7 +182,7 @@ void z_axis_close_lid() {
 void z_axis_change_tool() {
 
     #if LOGS >= 1
-    rprintf("LOG: Z_CHANGE_TOOL");
+    rprintf("LOG: Z_CHANGE_TOOL\r\n");
     #endif
 	
 	if(sTool == pick_tool){

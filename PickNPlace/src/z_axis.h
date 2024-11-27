@@ -12,14 +12,14 @@
 #include "main.h"
 
 /* The following defines specify the heights for every position in mm from upper dead end position. */
-#define PICK_HEIGHT_mm                  150
-#define PLACE_HEIGHT_mm                 100
-#define TOOL_GRAB_HEIGHT_mm             100
-#define TOOL_DROP_HEIGHT_mm             100
-#define SOAK_HEIGHT_mm                  100
-#define STAMP_HEIGHT_mm                 50
-#define CLOSE_HEIGHT_mm                 50
-#define TRAVEL_HEIGHT_mm                5
+#define PICK_HEIGHT_mm                  80
+#define PLACE_HEIGHT_mm                 80
+#define TOOL_GRAB_HEIGHT_mm             80
+#define TOOL_DROP_HEIGHT_mm             80
+#define SOAK_HEIGHT_mm                  80
+#define STAMP_HEIGHT_mm                 80
+#define CLOSE_HEIGHT_mm                 80
+#define TRAVEL_HEIGHT_mm                20
 
 /* Z axis remains for the wait time at each position. */
 #define WAIT_TIME_ms                    2000

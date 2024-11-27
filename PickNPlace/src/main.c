@@ -32,7 +32,7 @@ struct spi_slave_inst gSpiMotorController;
 struct adc_module gAdcInstance;
 struct usart_module gUsartInstance;
 
-static System_State_t sSystemState;
+static volatile System_State_t sSystemState;
 
 static void configure_spi_master(void){
 	struct spi_config config_spi_master;
@@ -59,18 +59,18 @@ static void configure_stepper_motor(void) {
 	struct drv_config_struct stepper_motor_config;
 	
 	stepper_motor_config.direction_set = DRV_DIRPIN;
-	stepper_motor_config.step_mode = DRV_MODE_1_4;
+	stepper_motor_config.step_mode = DRV_MODE_1_8;
 	stepper_motor_config.stall_detect = DRV_EXSTALL_INTERNAL;
 	stepper_motor_config.isense_gain = DRV_ISGAIN_40;
-	stepper_motor_config.dead_time_insert = DRV_DTIME_850ns; //Check if change is needed
-	stepper_motor_config.drv_torque = 0x96;
-	stepper_motor_config.backemf_sample_th = DRV_SMPLTH_200us; //Check if change is needed
-	stepper_motor_config.drv_toff = 0x80; // Check if change is needed
+	stepper_motor_config.dead_time_insert = DRV_DTIME_850ns;
+	stepper_motor_config.drv_torque = 0x14;
+	stepper_motor_config.backemf_sample_th = DRV_SMPLTH_100us;
+	stepper_motor_config.drv_toff = 0xA0; // Check if change is needed
 	stepper_motor_config.pwm_mode = DRV_PWMMODE_INTERNAL;
-	stepper_motor_config.drv_tblank = 0xFF; //Check if change is needed
+	stepper_motor_config.drv_tblank = 0x80; //Check if change is needed
 	stepper_motor_config.adaptive_blanking_time= DRV_ABT_DISABLE;
-	stepper_motor_config.drv_tdecay = 0x10; //Check if check is needed
-	stepper_motor_config.decay_mode = DRV_DECMOD_FORCE_AUTOMIXED; //Check if change is needed
+	stepper_motor_config.drv_tdecay = 0x10;
+	stepper_motor_config.decay_mode = DRV_DECMOD_FORCE_AUTOMIXED;
 	stepper_motor_config.ocp_threshold = DRV_OCPTH_250mV;
 	stepper_motor_config.ocp_deglitch_time = DRV_OCPDEG_4us;
 	stepper_motor_config.ls_drive_time = DRV_TDRIVEN_1us;
@@ -109,7 +109,7 @@ static void configure_adc(void) // TODO: Check  if calibration is needed
 	struct adc_config config_adc;
 	adc_get_config_defaults(&config_adc);
 	config_adc.negative_input = ADC_NEGATIVE_INPUT_GND; //Can be muxed to external pin
-	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN0;
+	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN8;
 	config_adc.reference = ADC_REFERENCE_INT1V;
     config_adc.accumulate_samples = ADC_ACCUMULATE_SAMPLES_1024;
 	adc_init(&gAdcInstance, ADC, &config_adc);
@@ -153,15 +153,18 @@ static void configure_usart_callbacks(void){
  */
 int set_state(System_State_t new_state) {
 	
-	if(sSystemState == start && new_state != init){
+	if(sSystemState == start &&
+    new_state != init &&
+    new_state != busy &&
+    new_state != get_force){
         #if LOGS > 0
-        rprintf("LOG: new state failed, not init.");
+        rprintf("LOG: new state failed, not allowed.\r\n");
         #endif
 		return EXIT_FAILURE;
 	} else {
 		sSystemState = new_state;
         #if LOGS > 0
-        rprintf("LOG: new state = %d", sSystemState);
+        rprintf("LOG: new state = %d\r\n", sSystemState);
         #endif
 		return EXIT_SUCCESS;
 	}
@@ -183,6 +186,9 @@ uint16_t notes1[15] = {7000, 6000, 7000, 3000, 3000, 0, 7000, 6000, 7000, 6000, 
 int main (void)
 {
 	system_init();
+    #if LOGS != 0 || TESTMODE != 0
+    rprintf_init();
+    #endif
 	delay_init();
 	configure_port_pins();
     configure_spi_master();
@@ -191,15 +197,14 @@ int main (void)
 	configure_usart();
 	configure_usart_callbacks();
 	system_interrupt_enable_global();
-    #if LOGS != 0 || TESTMODE != 0
-    rprintf_init();
-    #endif
 	
 	sSystemState = start;
 	
 	plc_com_arm_receiver();
 	
 	while (1) {
+		
+	//rprintf("LOOP");
 
     #if TESTMODE == 1
     rprintf("Voltage in uVolt: %d\r\n", force_sense_get_uV());
@@ -259,53 +264,57 @@ void test_loop(){
         delay_ms(1000);
         
         if(sSystemState == init) {
-            rprintf("INIT");
+            rprintf("INIT\r\n");
         }
         switch(sSystemState) {
             case(start):
+                rprintf("START\r\n");
+                break;
             case(idle):
-            case(busy):
                 rprintf("IDLE\r\n");
+                break;
+            case(busy):
+                rprintf("BUSY\r\n");
                 break;
             case(init):
                 rprintf("INIT called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(pick):
                 rprintf("PICK called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(place):
                 rprintf("PLACE called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(change_tool):
                 rprintf("TOOL called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(stamp):
                 rprintf("STAMP called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(soak):
                 rprintf("INK called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(close_lid):
                 rprintf("CLOSE LID called\r\n");
-                delay_ms(2000);
+                delay_ms(TEST_DELAY);
                 set_state(success);
                 break;
             case(get_force):
                 rprintf("FORCE called\r\n");
                 plc_com_transmit_force(
-                force_sense_get_millinewton()
+                -1500
                 );
                 break;
             case(music):

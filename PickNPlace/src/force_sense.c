@@ -26,7 +26,7 @@ static void force_sense_read_sense() {
 	}
 
     #if LOGS == 2
-    rprintf("LOG: new RAW ADC value: %d", sForceSenseLastReadout);
+    rprintf("LOG: new RAW ADC value: %d\r\n", sForceSenseLastReadout);
     #endif
 }
 

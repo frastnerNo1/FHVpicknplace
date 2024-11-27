@@ -11,14 +11,14 @@
 
 #include "main.h"
 
-#define DIRECTION_UP                    true
+#define DIRECTION_UP                    false
 #define DIRECTION_DOWN                  !DIRECTION_UP
 
-#define STEPPER_PULSE_PERIOD_us         50
-#define STEPPER_PULSE_SLOW_PERIOD_us    1000
+#define STEPPER_PULSE_PERIOD_us         30
+#define STEPPER_PULSE_SLOW_PERIOD_us    300
 
-#define Z_AXIS_MAX_TRAVEL               300
-#define Z_AXIS_MM_PER_REV               10
+#define Z_AXIS_MAX_TRAVEL               200
+#define Z_AXIS_MM_PER_REV               13
 
 #define Z_AXIS_STEPS_PER_REV            200
 #define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)
