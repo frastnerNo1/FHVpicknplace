@@ -35,6 +35,7 @@
 /* f --> failed, command could not be fullfiled                         */
 /* e1 --> error 1, system not initialized                               */
 /* e2 --> error 2, wrong tool is active for this command                */
+/* e3 --> error 3, controller not ready to process command              */
 /*                                                                      */
 /* X --> End of transmition                                             */
 /************************************************************************/
@@ -42,17 +43,9 @@
 #include "plc_com.h"
 #include "force_sense.h"
 
-const char cTerminator = 'X';
+#define SEND_DELAY_MS   100
 
-typedef enum states {
-	s_acknowledge   = 'a',
-	s_busy          = 'b',
-	s_unknown       = 'u',
-	s_success       = 's',
-    s_idle          = 'i',
-	s_failed        = 'f',
-	s_error         = 'e'
-	} Plc_State_t;
+const char cTerminator = 'X';
 	
 typedef enum commands {
 	c_init = 'I',
@@ -75,7 +68,7 @@ static void plc_com_itoa(int16_t, uint8_t *);
 	 */
 static void plc_com_plc_to_state(Plc_Command_t command, uint8_t specifier) {
 	
-	int acknowledge = 0;
+	uint8_t statusCode = 0;
 
     if(command == c_force){
         plc_com_transmit_force(
@@ -86,40 +79,41 @@ static void plc_com_plc_to_state(Plc_Command_t command, uint8_t specifier) {
 	
 	switch(command){
 		case(c_init):
-			acknowledge = set_state(init);
+			statusCode = set_state(init);
 			break;
 		case(c_tool):
-		    acknowledge = set_state(change_tool);
+		    statusCode = set_state(change_tool);
 			break;
 		case(c_move):
 		    switch(specifier) {
 				case('u'):
-				    acknowledge = set_state(pick);
+				    statusCode = set_state(pick);
 				    break;
 				case('d'):
-				    acknowledge = set_state(place);
+				    statusCode = set_state(place);
 					break;
 				case('c'):
-				    acknowledge = set_state(close_lid);
+				    statusCode = set_state(close_lid);
 					break;
 				case('s'):
-				    acknowledge = set_state(stamp);
+				    statusCode = set_state(stamp);
 				    break;
 				case('i'):
-				    acknowledge = set_state(soak);
+				    statusCode = set_state(soak);
 					break;
 				case('m'):
-				    acknowledge = set_state(music);
+				    statusCode = set_state(music);
 					break;
 			}
 	}
 	
-	if(acknowledge == EXIT_SUCCESS) {
+	if(statusCode == 0) {
 		plc_com_transmit_status(s_acknowledge, 0);
+	} else if(statusCode == 1) {
+		plc_com_error(e_not_init);
 	} else {
-		plc_com_transmit_status(s_error, e_not_init);
-		set_state(idle);
-	}
+        plc_com_error(e_not_ready);
+    }
 }
     
     /*
@@ -142,7 +136,8 @@ static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
     #if LOGS == 2
     rprintf("UART send to PLC: %s\r\n", txBuffer);
     #endif
-		
+	
+    delay_ms(SEND_DELAY_MS); // Delay to ensure PLC finished at least one cycle	
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, len);
 }
 
@@ -151,9 +146,7 @@ static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
 	 */
 void plc_com_success() {
 	
-    delay_ms(100); // Delay to ensure PLC finished at least one cycle
 	plc_com_transmit_status(s_success, 0);
-    delay_ms(100); // Delay to ensure PLC finished at least one cycle
     plc_com_transmit_status(s_idle, 0);
 	set_state(idle);
 	
@@ -214,18 +207,11 @@ void plc_com_receive_callback(struct usart_module* const usart_instance) {
 	static uint8_t specifier;
 	static bool awaitTerminator = false;
 	
-    /* Check if PLC is ready to take command */
-	if(get_state() != idle && get_state() != start) {
-		plc_com_transmit_status(s_busy, 0);
-		plc_com_arm_receiver();
-		return;
-	}
-	
-    /*Reset the variables*/
-	if(sSymbolCounter == 0) {
-		command = 0;
-		specifier = 0;
-	}
+    /*Reset the variables if symbol counter is in reset state*/
+    if(sSymbolCounter == 0) {
+        command = 0;
+        specifier = 0;
+    }
 	
     /*If terminator is not received or unexpected terminator is received
       or received symbols exceed the max. length an error is thrown. */
@@ -241,14 +227,13 @@ void plc_com_receive_callback(struct usart_module* const usart_instance) {
 		return;
 	}
 	
-    /*When terminator is received, the programm sets the new state.*/
+    /*When terminator is received, the program sets the new state.*/
 	if(sRxBuffer == cTerminator) {
 
         #if LOGS == 2
         rprintf("Valid command received. %c,%c\r\n", command, specifier);
         #endif
 
-		set_state(busy);
 		plc_com_plc_to_state(command, specifier);
 		sSymbolCounter = 0;
 		awaitTerminator = false;

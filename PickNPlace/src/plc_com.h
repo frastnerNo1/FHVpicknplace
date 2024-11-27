@@ -11,9 +11,20 @@
 
 #include "main.h"
 
+typedef enum states {
+    s_acknowledge   = 'a',
+    s_busy          = 'b',
+    s_unknown       = 'u',
+    s_success       = 's',
+    s_idle          = 'i',
+    s_failed        = 'f',
+    s_error         = 'e'
+} Plc_State_t;
+
 typedef enum errorCodes {
 	e_not_init      = '1',
 	e_wrong_tool    = '2',
+    e_not_ready  = '3',
 	e_general_error = '0'
 } Error_Code_t;
 

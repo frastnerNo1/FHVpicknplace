@@ -17,8 +17,8 @@
 #define PIN_POLARITY_UP                 false
 #define PIN_POLARITY_DOWN               true
 
-#define STEPPER_PULSE_PERIOD_us         30
-#define STEPPER_PULSE_SLOW_PERIOD_us    300
+#define STEPPER_PULSE_PERIOD_us         60
+#define STEPPER_PULSE_SLOW_PERIOD_us    600
 
 #define Z_AXIS_MAX_TRAVEL               200
 #define Z_AXIS_MM_PER_REV               13
@@ -245,6 +245,8 @@ void drv_ctrl_enable(void);
 void drv_ctrl_disable(void);
 
 void drv_ctrl_set_microsteps(enum drv_mode);
+
+void drv_ctrl_set_torque(uint8_t torquePercent);
 
 void drv_ctrl_home(void);
 

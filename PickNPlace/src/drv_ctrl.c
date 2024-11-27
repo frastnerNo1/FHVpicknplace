@@ -32,6 +32,7 @@ static void drv_ctrl_write_blank(void);
 static void drv_ctrl_write_decay(void);
 static void drv_ctrl_write_stall(void);
 static void drv_ctrl_write_drive(void);
+static void drv_ctrl_set_ramp_params(uint16_t, uint16_t);
 static inline void drv_ctrl_set_period(void);
 
     /* 
@@ -233,6 +234,17 @@ void drv_ctrl_set_microsteps(enum drv_mode steps) {
 }
 
     /*
+     * @brief: Set the torque of the motor in percent of the maximum torque.
+     * @param: Torque in percent
+     */
+void drv_ctrl_set_torque(uint8_t torquePercent){
+
+    sDrvConfig.drv_torque = 14800 / torquePercent;
+    drv_ctrl_write_torque();
+
+}
+
+    /*
      * @brief:  Turn on motor in upward direction until the top switch is reached.
      *          Then stop and set Position to 0. This function is blocking!!
      */
@@ -245,8 +257,7 @@ void drv_ctrl_home() {
     //Switch to more micro steps = slower movement
 	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
 
-    sDrvConfig.drv_torque = 0x28;
-    drv_ctrl_write_torque();
+    drv_ctrl_set_torque(20);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, PIN_POLARITY_UP);
     tc_start_counter(&pwm_timer);
@@ -257,8 +268,7 @@ void drv_ctrl_home() {
 	tc_stop_counter(&pwm_timer);
 	sActualPositionSteps = 0;
 
-    sDrvConfig.drv_torque = 0x14;
-    drv_ctrl_write_torque();
+    drv_ctrl_set_torque(10);
 		
 }
 
@@ -285,8 +295,7 @@ void drv_ctrl_moveto(uint16_t position_mm) {
     //Switch to less micro steps = faster movement
 	//drv_ctrl_set_microsteps(DRV_MODE_1_8);
 
-    sDrvConfig.drv_torque = 0x80;
-    drv_ctrl_write_torque();
+    drv_ctrl_set_torque(90);
 	
 	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM ;
 	
@@ -298,9 +307,7 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir == up ? PIN_POLARITY_UP : PIN_POLARITY_DOWN);
     sStepcounter = 0;
-    sPulsePeriod = STEPPER_PULSE_SLOW_PERIOD_us;
-    sTargetPeriod = STEPPER_PULSE_PERIOD_us;
-    drv_ctrl_set_period();
+    drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_us, STEPPER_PULSE_PERIOD_us);
 	tc_start_counter(&pwm_timer);
 
     while(sStepcounter < steps){
@@ -310,8 +317,7 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	sActualPositionSteps += (sStepcounter * dir);
     sStepcounter = 0;
     
-    sDrvConfig.drv_torque = 0x14;
-    drv_ctrl_write_torque();
+    drv_ctrl_set_torque(10);
 }
 
 
@@ -330,18 +336,16 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
     //Switch to more micro steps = slower movement
 	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
 	
-	sDrvConfig.drv_torque = 0x28;
-	drv_ctrl_write_torque();
+	drv_ctrl_set_torque(20);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, PIN_POLARITY_DOWN);
 	
     sStepcounter = 0;
-    sPulsePeriod = STEPPER_PULSE_SLOW_PERIOD_us;
-    sTargetPeriod = STEPPER_PULSE_SLOW_PERIOD_us;
-    drv_ctrl_set_period();
+    drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_us, STEPPER_PULSE_SLOW_PERIOD_us);
     tc_start_counter(&pwm_timer);
 	while(force_sense_get_millinewton() < force_mN) {
         // Wait till desired force is reached
+        delay_ms(10);
 	}
     tc_stop_counter(&pwm_timer);
     steps = sStepcounter;
@@ -358,12 +362,13 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 
     sActualPositionSteps += (steps - sStepcounter);
 	
-	sDrvConfig.drv_torque = 0x14;
-	drv_ctrl_write_torque();
+	drv_ctrl_set_torque(10);
 }
 
 void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
+    #if LOGS == 2
     rprintf("PWM Callback!");
+    #endif
     if(get_state() == init) return;
     
     sStepcounter++;
@@ -372,6 +377,12 @@ void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
         sPulsePeriod -= 10;
         drv_ctrl_set_period();
     }
+}
+
+static void drv_ctrl_set_ramp_params(uint16_t startPeriod, uint16_t targetPeriod){
+    sPulsePeriod = startPeriod;
+    sTargetPeriod = targetPeriod;
+    drv_ctrl_set_period();
 }
 
 static inline void drv_ctrl_set_period(){

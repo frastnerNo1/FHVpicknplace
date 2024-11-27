@@ -25,8 +25,8 @@
 #define WAIT_TIME_ms                    2000
 
 /* Target force in millinewton for the stamp. */
-#define SOAK_FORCE_mN                   (int16_t)1000
-#define STAMP_FORCE_mN                  (int16_t)1000
+#define SOAK_FORCE_mN                   (int16_t)500
+#define STAMP_FORCE_mN                  (int16_t)500
 
 void z_axis_home(void);
 

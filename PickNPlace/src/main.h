@@ -18,7 +18,7 @@
 #define TESTMODE    0
 
 /*Global enable for console logs: 0 = OFF, 1 = LOG, 2 = VERBOSE LOG*/
-#define LOGS        2
+#define LOGS        0
 
 #define TEST_DELAY 5000
 
@@ -46,10 +46,10 @@
 
 #define ADC_REFERENCE_PIN				EXT3_PIN_4  //NOT IN USE
 
-#define PWM_START_PERIOD                300     //Initial period of PWM signal in MS
+#define PWM_START_PERIOD                600     //Initial period of PWM signal in MS
 #define PWM_START_DUTY                  2       //Initial duty cycle divider of PWM signal
-#define CLK_FREQ                        32768UL //Clock frequency of main clock
-#define PRESC                           1       //Prescaler for timer
+#define CLK_FREQ                        8000000UL //Clock frequency of main clock
+#define PRESC                           64       //Prescaler for timer
 
 #define PERIOD_TO_CCVAL(a)           ((a * (CLK_FREQ / PRESC)) / 1000000) //ARGS: a = period in US
 
@@ -64,9 +64,11 @@ typedef enum system_states {
 	stamp,
 	soak,
 	close_lid,
-	get_force,
 	music,
-	success
+	success,
+    #if TESTMODE != 0
+    	get_force
+    #endif
 	} System_State_t;    
 
 extern struct spi_module gSpiMasterInstance;
@@ -76,7 +78,7 @@ extern struct usart_module gUsartInstance;
 extern struct tc_module pwm_timer;
 
 /* Setter function for the system state */
-int set_state(System_State_t);
+uint8_t set_state(System_State_t);
 
 /* Getter function for the system state */
 System_State_t get_state(void);

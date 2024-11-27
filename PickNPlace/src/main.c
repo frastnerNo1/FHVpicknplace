@@ -94,6 +94,7 @@ static void configure_timer(void){
 
     tc_get_config_defaults(&pwm_timer_config);
     pwm_timer_config.counter_size = TC_COUNTER_SIZE_16BIT;
+    pwm_timer_config.clock_prescaler = TC_CLOCK_PRESCALER_DIV64;
     pwm_timer_config.wave_generation = TC_WAVE_GENERATION_MATCH_PWM_MODE;
     pwm_timer_config.counter_16_bit.compare_capture_channel[0] = PERIOD_TO_CCVAL(PWM_START_PERIOD);
     pwm_timer_config.counter_16_bit.compare_capture_channel[1] = PERIOD_TO_CCVAL(PWM_START_PERIOD)/PWM_START_DUTY;
@@ -115,6 +116,7 @@ static void configure_port_pins(void)
 	config_port_pin.input_pull = PORT_PIN_PULL_DOWN;
 	port_pin_set_config(MOTOR_CONTROLLER_DIR_PIN, &config_port_pin);
 	port_pin_set_config(MOTOR_CONTROLLER_SS_PIN, &config_port_pin);
+    port_pin_set_config(MOTOR_CONTROLLER_STP_PIN, &config_port_pin);
 	port_pin_set_config(MAGNET_SWITCH_PIN, &config_port_pin);
 	config_port_pin.direction = PORT_PIN_DIR_INPUT;
 	config_port_pin.input_pull = PORT_PIN_PULL_UP;
@@ -156,8 +158,8 @@ static void configure_usart(void){
 }
 
 static void configure_timer_callback(void){
-    tc_register_callback(&pwm_timer,drv_ctrl_pwm_callback ,TC_CALLBACK_CC_CHANNEL1);
-    tc_enable_callback(&pwm_timer, TC_CALLBACK_CC_CHANNEL1);
+    tc_register_callback(&pwm_timer,drv_ctrl_pwm_callback ,TC_CALLBACK_OVERFLOW);
+    tc_enable_callback(&pwm_timer, TC_CALLBACK_OVERFLOW);
 }
 
 /* UART callback is implemented in plc_com file*/
@@ -174,23 +176,29 @@ static void configure_usart_callbacks(void){
  * @param: new system state of type system_states.
  * @returns: 0 when state is successfully set, 1 if change is not allowed
  */
-int set_state(System_State_t new_state) {
+uint8_t set_state(System_State_t new_state) {
+
+    uint8_t status = 0;
 	
-	if(sSystemState == start &&
-    new_state != init &&
-    new_state != busy &&
-    new_state != get_force){
+	if(sSystemState == start && new_state != init){
         #if LOGS > 0
         rprintf("LOG: new state failed, not allowed.\r\n");
         #endif
-		return EXIT_FAILURE;
-	} else {
+		status = 1;
+	} else if (sSystemState != idle) {
+        #if LOGS > 0
+        rprintf("LOG: new state failed, not finished.\r\n");
+        #endif
+        status = 2;
+    } else {
 		sSystemState = new_state;
         #if LOGS > 0
         rprintf("LOG: new state = %d\r\n", sSystemState);
         #endif
-		return EXIT_SUCCESS;
+		status = 0;
 	}
+
+    return status;
 }
 
 /*
@@ -231,11 +239,6 @@ int main (void)
 		
 	//rprintf("LOOP");
 
-    #if TESTMODE == 1
-    rprintf("Voltage in uVolt: %d\r\n", force_sense_get_uV());
-    delay_ms(1000);
-    #endif
-
     #if TESTMODE == 0
 
 		switch(sSystemState) {
@@ -264,11 +267,6 @@ int main (void)
 			case(close_lid):
 			    z_axis_close_lid();
 				break;
-			case(get_force):
-				plc_com_transmit_force(
-				    force_sense_get_millinewton()
-				);
-				break;
 			case(music):
 			    stepper_music_play(notes1, 15);
 				break;
@@ -278,12 +276,18 @@ int main (void)
 		}
     #endif
 
+    #if TESTMODE == 1
+    rprintf("Voltage in uVolt: %d\r\n", force_sense_get_uV());
+    delay_ms(1000);
+    #endif
+
     #if TESTMODE == 2
         test_loop();
     #endif
 	}
 }
 
+#if TESTMODE == 2
 void test_loop(){
 
         delay_ms(1000);
@@ -350,3 +354,4 @@ void test_loop(){
             break;
         }
 }
+#endif
