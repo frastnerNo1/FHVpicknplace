@@ -311,8 +311,12 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	tc_start_counter(&pwm_timer);
 
     while(sStepcounter < steps){
+	    #if LOGS == 2
+	    rprintf("LOG: travel %d steps of %d steps\r\n", sStepcounter, steps);
+	    #endif        
         //Wait till drive finished movement
     }
+    tc_stop_counter(&pwm_timer);
 	
 	sActualPositionSteps += (sStepcounter * dir);
     sStepcounter = 0;
@@ -366,9 +370,7 @@ void drv_ctrl_move_till_force(uint16_t force_mN) {
 }
 
 void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
-    #if LOGS == 2
-    rprintf("PWM Callback!");
-    #endif
+
     if(get_state() == init) return;
     
     sStepcounter++;

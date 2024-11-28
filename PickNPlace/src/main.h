@@ -18,7 +18,7 @@
 #define TESTMODE    0
 
 /*Global enable for console logs: 0 = OFF, 1 = LOG, 2 = VERBOSE LOG*/
-#define LOGS        0
+#define LOGS        2
 
 #define TEST_DELAY 5000
 

@@ -101,7 +101,7 @@ static void configure_timer(void){
     
     pwm_timer_config.pwm_channel[1].enabled = true;
     pwm_timer_config.pwm_channel[1].pin_mux = PINMUX_PA21E_TC7_WO1;
-    pwm_timer_config.pwm_channel[1].pin_out = MOTOR_CONTROLLER_DIR_PIN;
+    pwm_timer_config.pwm_channel[1].pin_out = MOTOR_CONTROLLER_STP_PIN;
 
     tc_init(&pwm_timer, TC7, &pwm_timer_config);
     tc_enable(&pwm_timer);
@@ -116,7 +116,6 @@ static void configure_port_pins(void)
 	config_port_pin.input_pull = PORT_PIN_PULL_DOWN;
 	port_pin_set_config(MOTOR_CONTROLLER_DIR_PIN, &config_port_pin);
 	port_pin_set_config(MOTOR_CONTROLLER_SS_PIN, &config_port_pin);
-    port_pin_set_config(MOTOR_CONTROLLER_STP_PIN, &config_port_pin);
 	port_pin_set_config(MAGNET_SWITCH_PIN, &config_port_pin);
 	config_port_pin.direction = PORT_PIN_DIR_INPUT;
 	config_port_pin.input_pull = PORT_PIN_PULL_UP;
@@ -185,7 +184,7 @@ uint8_t set_state(System_State_t new_state) {
         rprintf("LOG: new state failed, not allowed.\r\n");
         #endif
 		status = 1;
-	} else if (sSystemState != idle) {
+	} else if (sSystemState != idle && sSystemState != start && new_state != success && new_state != idle) {
         #if LOGS > 0
         rprintf("LOG: new state failed, not finished.\r\n");
         #endif
