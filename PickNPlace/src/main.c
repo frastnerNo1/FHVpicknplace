@@ -32,6 +32,7 @@ struct spi_slave_inst gSpiMotorController;
 struct adc_module gAdcInstance;
 struct usart_module gUsartInstance;
 struct tc_module pwm_timer;
+struct tc_module int_timer;
 
 static volatile System_State_t sSystemState;
 
@@ -91,6 +92,7 @@ static void configure_stepper_motor(void) {
 
 static void configure_timer(void){
     struct tc_config pwm_timer_config;
+    struct tc_config int_timer_config;
 
     tc_get_config_defaults(&pwm_timer_config);
     pwm_timer_config.counter_size = TC_COUNTER_SIZE_16BIT;
@@ -106,6 +108,16 @@ static void configure_timer(void){
     tc_init(&pwm_timer, TC7, &pwm_timer_config);
     tc_enable(&pwm_timer);
     tc_stop_counter(&pwm_timer);
+
+    tc_get_config_defaults(&int_timer_config);
+    int_timer_config.counter_size = TC_COUNTER_SIZE_16BIT;
+    int_timer_config.clock_prescaler = TC_CLOCK_PRESCALER_DIV1024;
+    int_timer_config.wave_generation = TC_WAVE_GENERATION_MATCH_FREQ_MODE;
+    int_timer_config.counter_16_bit.compare_capture_channel[0] = INT_TIMER_CC_VALUE;
+
+    tc_init(&int_timer, TC0, &int_timer_config);
+    tc_enable(&int_timer);
+    tc_stop_counter(&int_timer);
 }
 
 static void configure_port_pins(void)
@@ -117,6 +129,7 @@ static void configure_port_pins(void)
 	port_pin_set_config(MOTOR_CONTROLLER_DIR_PIN, &config_port_pin);
 	port_pin_set_config(MOTOR_CONTROLLER_SS_PIN, &config_port_pin);
 	port_pin_set_config(MAGNET_SWITCH_PIN, &config_port_pin);
+    port_pin_set_config(PLC_COM_CMD_PIN, &config_port_pin);
 	config_port_pin.direction = PORT_PIN_DIR_INPUT;
 	config_port_pin.input_pull = PORT_PIN_PULL_UP;
 	port_pin_set_config(Z_AXIS_ZERO_SWITCH_PIN, &config_port_pin);
@@ -159,6 +172,9 @@ static void configure_usart(void){
 static void configure_timer_callback(void){
     tc_register_callback(&pwm_timer,drv_ctrl_pwm_callback ,TC_CALLBACK_OVERFLOW);
     tc_enable_callback(&pwm_timer, TC_CALLBACK_OVERFLOW);
+
+    tc_register_callback(&int_timer, plc_com_transmit_force,TC_CALLBACK_OVERFLOW);
+    tc_enable_callback(&int_timer, TC_CALLBACK_OVERFLOW);
 }
 
 /* UART callback is implemented in plc_com file*/
@@ -247,6 +263,7 @@ int main (void)
 			    break;
 			case(init):
 			    z_axis_home();
+                tc_start_counter(&int_timer);   //Force transmission is started after initialization
 				break;
 			case(pick):
 			    z_axis_pick_sample();

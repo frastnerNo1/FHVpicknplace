@@ -43,15 +43,18 @@
 #define MOTOR_CONTROLLER_STP_PIN        EXT2_PIN_6
 #define MAGNET_SWITCH_PIN               EXT2_PIN_7
 #define Z_AXIS_ZERO_SWITCH_PIN          EXT2_PIN_8
+#define PLC_COM_CMD_PIN                 EXT2_PIN_9
 
 #define ADC_REFERENCE_PIN				EXT3_PIN_4  //NOT IN USE
 
+#define FORCE_SEND_PERIOD_MS            500
 #define PWM_START_PERIOD                2000      //Initial period of PWM signal in MS
 #define PWM_START_DUTY                  2       //Initial duty cycle divider of PWM signal
 #define CLK_FREQ                        8000000UL //Clock frequency of main clock
 #define PRESC                           64       //Prescaler for timer
 
-#define PERIOD_TO_CCVAL(a)           ((a * (CLK_FREQ / PRESC)) / 1000000) //ARGS: a = period in US
+#define PERIOD_TO_CCVAL(a)              ((a * (CLK_FREQ / PRESC)) / 1000000) //ARGS: a = period in US
+#define INT_TIMER_CC_VALUE              ((FORCE_SEND_PERIOD_MS * (CLK_FREQ / 1024)) / 1000)
 
 typedef enum system_states {
 	start,
@@ -76,6 +79,7 @@ extern struct spi_slave_inst gSpiMotorController;
 extern struct adc_module gAdcInstance;
 extern struct usart_module gUsartInstance;
 extern struct tc_module pwm_timer;
+extern struct tc_module int_timer;
 
 /* Setter function for the system state */
 uint8_t set_state(System_State_t);

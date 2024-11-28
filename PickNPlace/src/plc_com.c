@@ -12,7 +12,6 @@
 /* I --> System Init                         RX Only                    */
 /* M --> Move, followed by specifier         RX Only                    */
 /* T --> Toolchange                          RX Only                    */
-/* F --> Force, init force transmition       RX Only                    */
 /*                                                                      */
 /* Move specifiers: Mx                                                  */
 /* u --> pick up                                                        */
@@ -51,8 +50,7 @@ const char cTerminator = 'X';
 typedef enum commands {
 	c_init = 'I',
 	c_move = 'M',
-	c_tool = 'T',
-	c_force = 'F'
+	c_tool = 'T'
 	} Plc_Command_t;
 
 static uint16_t sRxBuffer;
@@ -70,13 +68,6 @@ static void plc_com_itoa(int16_t, uint8_t *);
 static void plc_com_plc_to_state(Plc_Command_t command, uint8_t specifier) {
 	
 	uint8_t statusCode = 0;
-
-    if(command == c_force){
-        plc_com_transmit_force(
-        force_sense_get_millinewton()
-        );
-        return;
-    }
 	
 	switch(command){
 		case(c_init):
@@ -138,8 +129,15 @@ static void plc_com_transmit_status(Plc_State_t status, Error_Code_t code) {
     rprintf("UART send to PLC: %s\r\n", txBuffer);
     #endif
 	
+    tc_stop_counter(&int_timer);    //Stop the force transmission interrupt
+    port_pin_set_output_level(PLC_COM_CMD_PIN, true);   //Switch PLC to command mode
+
     delay_ms(SEND_DELAY_MS); // Delay to ensure PLC finished at least one cycle	
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, len);
+    delay_ms(SEND_DELAY_MS); // Delay to ensure PLC finished at least one cycle
+
+    port_pin_set_output_level(PLC_COM_CMD_PIN, false);  //Switch PLC to force mode
+    tc_start_counter(&int_timer);   //Start force transmission
 }
 
 	/*
@@ -167,22 +165,21 @@ void plc_com_error(Error_Code_t code) {
 	 * @brief: convert force value to ascii string an send it to the PLC via UART
      * @param: force as signed int16_t value
 	 */
-void plc_com_transmit_force(int16_t force) {
+void plc_com_transmit_force(struct tc_module* const tc_instance) {
 	
 	uint8_t txBuffer[8];
 
-    plc_com_itoa(force, txBuffer);
+    plc_com_itoa(force_sense_get_millinewton(), txBuffer);
 	
 	txBuffer[0] = 'S';
 	txBuffer[7] = cTerminator;
 
     #if LOGS == 2
-    rprintf("LOG: force send to PLC: %s", txBuffer);
+    rprintf("LOG: force send to PLC: %s\n\r", txBuffer);
     #endif
 	
 	usart_write_buffer_wait(&gUsartInstance, txBuffer, 8);
 	
-	set_state(idle);
 }
 
 void plc_com_arm_receiver() {
@@ -255,10 +252,6 @@ void plc_com_receive_callback(struct usart_module* const usart_instance) {
 				break;
 			case('T'):
 			    command = c_tool;
-				awaitTerminator = true;
-				break;
-			case('F'):
-			    command = c_force;
 				awaitTerminator = true;
 				break;
 			default:
