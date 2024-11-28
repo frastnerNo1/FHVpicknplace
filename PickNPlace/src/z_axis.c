@@ -87,6 +87,8 @@ void z_axis_place_sample(){
 	 */
 void z_axis_soak_stamp() {
 
+    uint8_t status = 0;
+
     #if LOGS >= 1
     rprintf("LOG: Z_SOAK_STAMP\r\n");
     #endif
@@ -97,16 +99,24 @@ void z_axis_soak_stamp() {
 	}
 	
 	drv_ctrl_moveto(SOAK_HEIGHT_mm);
-	drv_ctrl_move_till_force(SOAK_FORCE_mN);
+	status = drv_ctrl_move_till_force(SOAK_FORCE_mN);
 	delay_ms(WAIT_TIME_ms);
 	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	set_state(success);
+
+    if(status == 0){
+	    set_state(success);
+    } else {
+        plc_com_error(e_force);
+    }
+
 }
 
     /* 
 	 * @brief: Move down to the box till the required force is reached. Then move to the travel position.
 	 */
 void z_axis_stamp() {
+
+    uint8_t status = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_STAMP\r\n");
@@ -118,10 +128,15 @@ void z_axis_stamp() {
 	}
 	
 	drv_ctrl_moveto(STAMP_HEIGHT_mm);
-	drv_ctrl_move_till_force(STAMP_FORCE_mN);
+	status = drv_ctrl_move_till_force(STAMP_FORCE_mN);
 	delay_ms(WAIT_TIME_ms);
 	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	set_state(success);
+	
+    if(status == 0){
+        set_state(success);
+        } else {
+        plc_com_error(e_force);
+    }
 }
 
     /*

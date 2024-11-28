@@ -11,16 +11,14 @@
 
 #include "main.h"
 
-#define DIRECTION_UP                    -1
-#define DIRECTION_DOWN                  1
+#define DIRECTION_UP                    false
+#define DIRECTION_DOWN                  !DIRECTION_UP
 
-#define PIN_POLARITY_UP                 false
-#define PIN_POLARITY_DOWN               true
-
-#define STEPPER_PULSE_PERIOD_us         60
-#define STEPPER_PULSE_SLOW_PERIOD_us    600
+#define STEPPER_PULSE_PERIOD_ms         500
+#define STEPPER_PULSE_SLOW_PERIOD_ms    2000
 
 #define Z_AXIS_MAX_TRAVEL               200
+#define Z_AXIS_MAX_STAMP_DISTANCE       10
 #define Z_AXIS_MM_PER_REV               13
 
 #define Z_AXIS_STEPS_PER_REV            200
@@ -252,7 +250,7 @@ void drv_ctrl_home(void);
 
 void drv_ctrl_moveto(uint16_t);
 
-void drv_ctrl_move_till_force(uint16_t);
+uint8_t drv_ctrl_move_till_force(uint16_t);
 
 void drv_ctrl_pwm_callback(struct tc_module *);
 

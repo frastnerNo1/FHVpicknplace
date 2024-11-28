@@ -36,6 +36,7 @@
 /* e1 --> error 1, system not initialized                               */
 /* e2 --> error 2, wrong tool is active for this command                */
 /* e3 --> error 3, controller not ready to process command              */
+/* e4 --> error 4, target force not reached                             */
 /*                                                                      */
 /* X --> End of transmition                                             */
 /************************************************************************/
@@ -43,7 +44,7 @@
 #include "plc_com.h"
 #include "force_sense.h"
 
-#define SEND_DELAY_MS   100
+#define SEND_DELAY_MS   1000
 
 const char cTerminator = 'X';
 	

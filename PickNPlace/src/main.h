@@ -46,7 +46,7 @@
 
 #define ADC_REFERENCE_PIN				EXT3_PIN_4  //NOT IN USE
 
-#define PWM_START_PERIOD                600     //Initial period of PWM signal in MS
+#define PWM_START_PERIOD                2000      //Initial period of PWM signal in MS
 #define PWM_START_DUTY                  2       //Initial duty cycle divider of PWM signal
 #define CLK_FREQ                        8000000UL //Clock frequency of main clock
 #define PRESC                           64       //Prescaler for timer
