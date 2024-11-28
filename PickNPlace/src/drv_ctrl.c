@@ -43,7 +43,7 @@ static inline void drv_ctrl_set_period(void);
 static void drv_ctrl_write_cmd(uint8_t adress, uint16_t data) {
 
     #if LOGS == 2
-    rprintf("LOG: transmit: %x to adress: %x\r\n", data, adress);
+    rprintf("LOG: transmit: %d to adress: %d\r\n", data, adress);
     #endif
 	
 	uint8_t transfer_data_buffer[] = {((adress << 4)|(data >> 8)), (data & 0xFF)};
@@ -258,7 +258,7 @@ void drv_ctrl_home() {
 	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
 
     drv_ctrl_set_torque(20);
-	
+	drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_SLOW_PERIOD_ms);
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
     tc_start_counter(&pwm_timer);
 	while (port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN))

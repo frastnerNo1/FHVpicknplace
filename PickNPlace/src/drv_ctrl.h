@@ -14,7 +14,7 @@
 #define DIRECTION_UP                    false
 #define DIRECTION_DOWN                  !DIRECTION_UP
 
-#define STEPPER_PULSE_PERIOD_ms         500
+#define STEPPER_PULSE_PERIOD_ms         180
 #define STEPPER_PULSE_SLOW_PERIOD_ms    2000
 
 #define Z_AXIS_MAX_TRAVEL               200

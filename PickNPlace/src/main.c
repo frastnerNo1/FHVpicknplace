@@ -60,7 +60,7 @@ static void configure_stepper_motor(void) {
 	struct drv_config_struct stepper_motor_config;
 	
 	stepper_motor_config.direction_set = DRV_DIRPIN;
-	stepper_motor_config.step_mode = DRV_MODE_1_4;
+	stepper_motor_config.step_mode = DRV_MODE_1_8;
 	stepper_motor_config.stall_detect = DRV_EXSTALL_INTERNAL;
 	stepper_motor_config.isense_gain = DRV_ISGAIN_40;
 	stepper_motor_config.dead_time_insert = DRV_DTIME_850ns;

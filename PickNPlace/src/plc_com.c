@@ -44,7 +44,7 @@
 #include "plc_com.h"
 #include "force_sense.h"
 
-#define SEND_DELAY_MS   1000
+#define SEND_DELAY_MS   100
 
 const char cTerminator = 'X';
 	
@@ -173,8 +173,8 @@ void plc_com_transmit_force(int16_t force) {
 
     plc_com_itoa(force, txBuffer);
 	
-	txBuffer[0] = 'f';
-	txBuffer[7] = 'Q';
+	txBuffer[0] = 'S';
+	txBuffer[7] = cTerminator;
 
     #if LOGS == 2
     rprintf("LOG: force send to PLC: %s", txBuffer);
