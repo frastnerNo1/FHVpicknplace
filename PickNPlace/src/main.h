@@ -13,7 +13,7 @@
  * Define the test mode at compile time:
  * 0 = OFF, normal program mode
  * 1 = FORCE test, ADC output is printed to console every second
- * 2 = COM test, UART inputs are plotted on the console
+ * 2 = COM test, UART inputs are plotted on the console program triggers no real HW actions.
  */
 #define TESTMODE    0
 
@@ -31,7 +31,7 @@
 #include "rprintf.h"
 #endif
 
-#define FORCE_SENSE_INPUT_PIN           EXT1_PIN_3
+#define FORCE_SENSE_INPUT_PIN           EXT1_PIN_3  //Alternative for second INA PCB = EXT3_PIN_3 AIN[0]
 #define MOTOR_CONTROLLER_SS_PIN         EXT1_PIN_5
 #define PLC_COM_RX_PIN                  EXT1_PIN_13
 #define PLC_COM_TX_PIN                  EXT1_PIN_14
@@ -43,15 +43,15 @@
 #define MOTOR_CONTROLLER_STP_PIN        EXT2_PIN_6
 #define MAGNET_SWITCH_PIN               EXT2_PIN_7
 #define Z_AXIS_ZERO_SWITCH_PIN          EXT2_PIN_8
-#define PLC_COM_CMD_PIN                 EXT2_PIN_9
+#define PLC_COM_CMD_PIN                 EXT3_PIN_5
 
 #define ADC_REFERENCE_PIN				EXT3_PIN_4  //NOT IN USE
 
 #define FORCE_SEND_PERIOD_MS            500
-#define PWM_START_PERIOD                2000      //Initial period of PWM signal in MS
-#define PWM_START_DUTY                  2       //Initial duty cycle divider of PWM signal
-#define CLK_FREQ                        8000000UL //Clock frequency of main clock
-#define PRESC                           64       //Prescaler for timer
+#define PWM_START_PERIOD                2000        //Initial period of PWM signal in MS
+#define PWM_DUTY                        2           //Duty cycle divider of PWM signal
+#define CLK_FREQ                        8000000UL   //Clock frequency of main clock, 2 = 50%
+#define PRESC                           64          //Prescaler for timer
 
 #define PERIOD_TO_CCVAL(a)              ((a * (CLK_FREQ / PRESC)) / 1000000) //ARGS: a = period in US
 #define INT_TIMER_CC_VALUE              ((FORCE_SEND_PERIOD_MS * (CLK_FREQ / 1024)) / 1000)
@@ -67,7 +67,6 @@ typedef enum system_states {
 	stamp,
 	soak,
 	close_lid,
-	music,
 	success,
     #if TESTMODE != 0
     	get_force

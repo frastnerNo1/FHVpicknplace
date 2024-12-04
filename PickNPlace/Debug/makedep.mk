@@ -30,8 +30,6 @@ src\plc_com.c
 
 src\rprintf.c
 
-src\stepper_music.c
-
 src\z_axis.c
 
 src\ASF\common\utils\interrupt\interrupt_sam_nvic.c

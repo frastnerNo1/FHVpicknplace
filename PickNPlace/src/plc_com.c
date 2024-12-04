@@ -93,9 +93,6 @@ static void plc_com_plc_to_state(Plc_Command_t command, uint8_t specifier) {
 				case('i'):
 				    statusCode = set_state(soak);
 					break;
-				case('m'):
-				    statusCode = set_state(music);
-					break;
 			}
 	}
 	
@@ -276,7 +273,6 @@ void plc_com_receive_callback(struct usart_module* const usart_instance) {
 			case('c'):
 			case('s'):
 			case('i'):
-			case('m'):
 			    specifier = sRxBuffer;
 			    break;
 			default:

@@ -21,7 +21,6 @@ static volatile uint16_t sStepcounter;
 static volatile uint16_t sPulsePeriod;
 static volatile uint16_t sTargetPeriod;
 
-static uint16_t sStepDivider;
 
 static void drv_ctrl_write_cmd(uint8_t, uint16_t);
 static uint16_t drv_ctrl_read_cmd(uint8_t);
@@ -160,7 +159,6 @@ void drv_ctrl_init(Driver_Instance_t * const new_config) {
 	drv_ctrl_write_decay();			
 	drv_ctrl_write_stall();			
 	drv_ctrl_write_drive();
-    drv_ctrl_set_microsteps(new_config->step_mode);
 }
 
     /* 
@@ -189,49 +187,6 @@ void drv_ctrl_disable(){
 	drv_ctrl_write_ctrl();
 }
 
-    /*
-     * @brief: Set the microstep mode. Changes also the step divider for converting mm to steps.
-     * @param: micro step mode as drv_mode
-     */
-void drv_ctrl_set_microsteps(enum drv_mode steps) {
-	
-	sDrvConfig.step_mode = steps;
-	drv_ctrl_write_ctrl();
-	
-	switch(steps) {
-		case(DRV_MODE_1):
-		    sStepDivider = 1;
-			break;
-		case(DRV_MODE_1_2):
-		    sStepDivider = 2;
-		    break;
-		case(DRV_MODE_1_4):
-		    sStepDivider = 4;
-			break;
-		case(DRV_MODE_1_8):
-		    sStepDivider = 8;
-		    break;
-		case(DRV_MODE_1_16):
-		    sStepDivider = 16;
-		    break;
-		case(DRV_MODE_1_32):
-		    sStepDivider = 32;
-		    break;
-		case(DRV_MODE_1_64):
-		    sStepDivider = 64;
-		    break;
-		case(DRV_MODE_1_128):
-		    sStepDivider = 128;
-			break;
-	    case(DRV_MODE_1_256):
-		    sStepDivider = 256;
-			break;
-
-        #if LOGS == 2
-        rprintf("LOG: set micro steps to: %d\r\n", sStepDivider);
-        #endif
-	}
-}
 
     /*
      * @brief: Set the torque of the motor in percent of the maximum torque.
@@ -253,9 +208,6 @@ void drv_ctrl_home() {
     #if LOGS == 2
     rprintf("LOG: home sequence called\r\n");
     #endif
-	
-    //Switch to more micro steps = slower movement
-	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
 
     drv_ctrl_set_torque(20);
 	drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_SLOW_PERIOD_ms);
@@ -289,16 +241,13 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 		    #endif
 		return;
 	}
-	
-    //Switch to less micro steps = faster movement
-	//drv_ctrl_set_microsteps(DRV_MODE_1_8);
 
     drv_ctrl_set_torque(90);
 	
 	uint32_t target_steps = position_mm * Z_AXIS_STEPS_PER_MM ;
 	
 	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
-	sStepcounter = abs(sActualPositionSteps - target_steps)*sStepDivider;
+	sStepcounter = abs(sActualPositionSteps - target_steps);
 	    #if LOGS == 2
 	    rprintf("LOG: travel %d steps in dir: %d\r\n", sStepcounter, dir);
 	    #endif
@@ -307,11 +256,17 @@ void drv_ctrl_moveto(uint16_t position_mm) {
     drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_PERIOD_ms);
 	tc_start_counter(&pwm_timer);
 
-    while(sStepcounter > 0){
+    while(sStepcounter > 0 && port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN)){
 	    #if LOGS == 2
 	    rprintf("LOG: travel %d steps.\r\n", sStepcounter);
 	    #endif        
         //Wait till drive finished movement
+    }
+
+    if(!port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN)){
+        #if LOGS >= 1
+        rprintf("LOG: Z axis, end switch reached!!\r\n");
+        #endif
     }
 	
 	sActualPositionSteps = target_steps;
@@ -332,9 +287,6 @@ uint8_t drv_ctrl_move_till_force(uint16_t force_mN) {
 
     uint8_t status = 0;
 	
-    //Switch to more micro steps = slower movement
-	//drv_ctrl_set_microsteps(DRV_MODE_1_64);
-	
 	drv_ctrl_set_torque(20);
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
@@ -342,9 +294,8 @@ uint8_t drv_ctrl_move_till_force(uint16_t force_mN) {
     sStepcounter = Z_AXIS_MAX_STAMP_DISTANCE * Z_AXIS_STEPS_PER_MM;
     drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_SLOW_PERIOD_ms);
     tc_start_counter(&pwm_timer);
-	while(force_sense_get_millinewton() < force_mN && sStepcounter > 0) {
+	while(abs(force_sense_get_millinewton()) < force_mN && sStepcounter > 0) {
         // Wait till desired force is reached or distance exceeds max stamp distance
-        delay_ms(1);
 	}
     tc_stop_counter(&pwm_timer);
     if(sStepcounter == 0) status = 1;
@@ -374,7 +325,7 @@ void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
     sStepcounter--;
 
     if(sPulsePeriod > sTargetPeriod){
-        sPulsePeriod -= 5;
+        sPulsePeriod -= 10;
         drv_ctrl_set_period();
     }
 }
@@ -388,5 +339,5 @@ static void drv_ctrl_set_ramp_params(uint16_t startPeriod, uint16_t targetPeriod
 static inline void drv_ctrl_set_period(){
     
     tc_set_compare_value(&pwm_timer, TC_COMPARE_CAPTURE_CHANNEL_0, PERIOD_TO_CCVAL(sPulsePeriod));
-    tc_set_compare_value(&pwm_timer, TC_COMPARE_CAPTURE_CHANNEL_1, PERIOD_TO_CCVAL(sPulsePeriod)/PWM_START_DUTY);
+    tc_set_compare_value(&pwm_timer, TC_COMPARE_CAPTURE_CHANNEL_1, PERIOD_TO_CCVAL(sPulsePeriod)/PWM_DUTY);
 }

@@ -22,7 +22,8 @@
 #define Z_AXIS_MM_PER_REV               13
 
 #define Z_AXIS_STEPS_PER_REV            200
-#define Z_AXIS_STEPS_PER_MM             (uint16_t)(Z_AXIS_STEPS_PER_REV / Z_AXIS_MM_PER_REV)
+#define Z_AXIS_MICROSTEPS               8
+#define Z_AXIS_STEPS_PER_MM             (uint16_t)((Z_AXIS_STEPS_PER_REV * Z_AXIS_MICROSTEPS) / Z_AXIS_MM_PER_REV)
 
 
 /* Registers of DRV8711 */
@@ -241,8 +242,6 @@ void drv_ctrl_init(Driver_Instance_t *);
 void drv_ctrl_enable(void);
 
 void drv_ctrl_disable(void);
-
-void drv_ctrl_set_microsteps(enum drv_mode);
 
 void drv_ctrl_set_torque(uint8_t torquePercent);
 

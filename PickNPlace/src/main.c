@@ -21,7 +21,6 @@
 #include "plc_com.h"
 #include "force_sense.h"
 #include "z_axis.h"
-#include "stepper_music.h"
 
 /* Function prototype for the loop to check the PLC com. */
 void test_loop(void);
@@ -99,7 +98,7 @@ static void configure_timer(void){
     pwm_timer_config.clock_prescaler = TC_CLOCK_PRESCALER_DIV64;
     pwm_timer_config.wave_generation = TC_WAVE_GENERATION_MATCH_PWM_MODE;
     pwm_timer_config.counter_16_bit.compare_capture_channel[0] = PERIOD_TO_CCVAL(PWM_START_PERIOD);
-    pwm_timer_config.counter_16_bit.compare_capture_channel[1] = PERIOD_TO_CCVAL(PWM_START_PERIOD)/PWM_START_DUTY;
+    pwm_timer_config.counter_16_bit.compare_capture_channel[1] = PERIOD_TO_CCVAL(PWM_START_PERIOD)/PWM_DUTY;
     
     pwm_timer_config.pwm_channel[1].enabled = true;
     pwm_timer_config.pwm_channel[1].pin_mux = PINMUX_PA21E_TC7_WO1;
@@ -141,8 +140,9 @@ static void configure_adc(void) // TODO: Check  if calibration is needed
 	struct adc_config config_adc;
 	adc_get_config_defaults(&config_adc);
 	config_adc.negative_input = ADC_NEGATIVE_INPUT_GND; //Can be muxed to external pin
-	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN8;
+	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN8; //Alternative for INA PCB PIN0
 	config_adc.reference = ADC_REFERENCE_INT1V;
+    config_adc.sample_length = 63;
     config_adc.accumulate_samples = ADC_ACCUMULATE_SAMPLES_1024;
 	adc_init(&gAdcInstance, ADC, &config_adc);
 	adc_enable(&gAdcInstance);
@@ -283,9 +283,6 @@ int main (void)
 			case(close_lid):
 			    z_axis_close_lid();
 				break;
-			case(music):
-			    stepper_music_play(notes1, 15);
-				break;
 			case(success):
 			    plc_com_success();
 				break;
@@ -361,9 +358,6 @@ void test_loop(){
                 plc_com_transmit_force(
                 -1500
                 );
-                break;
-            case(music):
-                stepper_music_play(notes1, 15);
                 break;
             case(success):
                 plc_com_success();
