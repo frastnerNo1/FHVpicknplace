@@ -37,6 +37,7 @@ void z_axis_home() {
 	drv_ctrl_home();
 	force_sense_calibrate();
 	sTool = pick_tool;
+    drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
 	set_state(success);
 }
 

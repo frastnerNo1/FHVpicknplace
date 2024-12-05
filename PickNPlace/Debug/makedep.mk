@@ -20,8 +20,6 @@ src\ASF\sam0\drivers\tc\tc_interrupt.c
 
 src\ASF\sam0\drivers\tc\tc_sam_d_r_h\tc.c
 
-src\custom_timer.c
-
 src\drv_ctrl.c
 
 src\force_sense.c

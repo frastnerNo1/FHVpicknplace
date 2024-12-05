@@ -17,8 +17,8 @@
 #define STEPPER_PULSE_PERIOD_ms         180
 #define STEPPER_PULSE_SLOW_PERIOD_ms    2000
 
-#define Z_AXIS_MAX_TRAVEL               200
-#define Z_AXIS_MAX_STAMP_DISTANCE       10
+#define Z_AXIS_MAX_TRAVEL               10000
+#define Z_AXIS_MAX_STAMP_DISTANCE       1200
 #define Z_AXIS_MM_PER_REV               13
 
 #define Z_AXIS_STEPS_PER_REV            200

@@ -12,16 +12,18 @@
 #include "main.h"
 
 /* The following defines specify the heights for every position in mm from upper dead end position. */
+
+/* One millimeter is ~ 123 steps */
 #define OFFSET                          0
 
-#define PICK_HEIGHT_mm                  67 + OFFSET
-#define PLACE_HEIGHT_mm                 40 + OFFSET
-#define TOOL_GRAB_HEIGHT_mm             97 + OFFSET
-#define TOOL_DROP_HEIGHT_mm             90 + OFFSET
-#define SOAK_HEIGHT_mm                  88 + OFFSET
-#define STAMP_HEIGHT_mm                 10 + OFFSET
-#define CLOSE_HEIGHT_mm                 65 + OFFSET
-#define TRAVEL_HEIGHT_mm                5 + OFFSET
+#define PICK_HEIGHT_mm                  6750 + OFFSET
+#define PLACE_HEIGHT_mm                 4300 + OFFSET
+#define TOOL_GRAB_HEIGHT_mm             9550 + OFFSET
+#define TOOL_DROP_HEIGHT_mm             9400 + OFFSET
+#define SOAK_HEIGHT_mm                  8550 + OFFSET
+#define STAMP_HEIGHT_mm                 3300 + OFFSET
+#define CLOSE_HEIGHT_mm                 6700 + OFFSET
+#define TRAVEL_HEIGHT_mm                700 + OFFSET
 
 /* Z axis remains for the wait time at each position. */
 #define WAIT_TIME_ms                    1000

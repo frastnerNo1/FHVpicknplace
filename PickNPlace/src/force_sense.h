@@ -11,7 +11,7 @@
 
 #include "main.h"
 
-#define FORCE_SENSE_mN_PER_COUNT        2
+#define FORCE_SENSE_mN_PER_COUNT        5
 #define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)
 
 void force_sense_calibrate(void);
