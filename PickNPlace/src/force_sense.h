@@ -11,8 +11,21 @@
 
 #include "main.h"
 
-#define FORCE_SENSE_mN_PER_COUNT        5
-#define FORCE_SENSE_g_PER_COUNT         (uint16_t)(FORCE_SENSE_mN_PER_COUNT * 9.81)
+/* Used bridge circuit: 0 = MAIN PCB, 1 = independent bridge PCB*/
+#define INA_BRIDGE                  0
+
+#if INA_BRIDGE == 0
+#define FORCE_SENSE_mN_PER_BIT      2
+#endif
+
+#if INA_BRIDGE == 1
+#define FORCE_SENSE_mN_PER_BIT      6.26f
+#endif
+
+#define FORCE_SENSE_g_PER_BIT       (FORCE_SENSE_mN_PER_BIT * 0.1f)
+
+#define AVERAGE_NUMBER              10
+#define AVG(a, b)                   ((a >> 1) + (b >> 1) + (a & b & 0x1))
 
 void force_sense_calibrate(void);
 

@@ -11,26 +11,26 @@
 
 #include "main.h"
 
-/* The following defines specify the heights for every position in mm from upper dead end position. */
+/* The following defines specify the heights for every position in steps from upper dead end position. */
 
 /* One millimeter is ~ 123 steps */
 #define OFFSET                          0
 
-#define PICK_HEIGHT_mm                  6750 + OFFSET
-#define PLACE_HEIGHT_mm                 4300 + OFFSET
-#define TOOL_GRAB_HEIGHT_mm             9550 + OFFSET
-#define TOOL_DROP_HEIGHT_mm             9400 + OFFSET
-#define SOAK_HEIGHT_mm                  8550 + OFFSET
-#define STAMP_HEIGHT_mm                 3300 + OFFSET
-#define CLOSE_HEIGHT_mm                 6700 + OFFSET
-#define TRAVEL_HEIGHT_mm                700 + OFFSET
+#define PICK_HEIGHT_STEPS                  6800 + OFFSET
+#define PLACE_HEIGHT_STEPS                 4300 + OFFSET
+#define TOOL_GRAB_HEIGHT_STEPS             11400 + OFFSET
+#define TOOL_DROP_HEIGHT_STEPS             10000 + OFFSET
+#define SOAK_HEIGHT_STEPS                  10300 + OFFSET
+#define STAMP_HEIGHT_STEPS                 3700 + OFFSET
+#define CLOSE_HEIGHT_STEPS                 7200 + OFFSET
+#define TRAVEL_HEIGHT_STEPS                700 + OFFSET
 
 /* Z axis remains for the wait time at each position. */
-#define WAIT_TIME_ms                    1000
+#define WAIT_TIME_ms                       1000
 
 /* Target force in millinewton for the stamp. */
-#define SOAK_FORCE_mN                   (int16_t)500
-#define STAMP_FORCE_mN                  (int16_t)500
+#define SOAK_FORCE_mN                   (int16_t)5000
+#define STAMP_FORCE_mN                  (int16_t)5000
 
 void z_axis_home(void);
 

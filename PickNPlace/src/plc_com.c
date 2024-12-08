@@ -36,6 +36,7 @@
 /* e2 --> error 2, wrong tool is active for this command                */
 /* e3 --> error 3, controller not ready to process command              */
 /* e4 --> error 4, target force not reached                             */
+/* e5 --> error 5, out of position
 /*                                                                      */
 /* X --> End of transmition                                             */
 /************************************************************************/

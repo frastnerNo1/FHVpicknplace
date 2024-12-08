@@ -9,8 +9,8 @@
 
 #include "force_sense.h"
 
-static uint16_t sForceSenseLastReadout;
-static uint16_t sForceSenseZeroValue;
+static uint32_t sForceSenseLastReadout;
+static uint16_t sForceSenseZeroForce;
 
 static void force_sense_read_sense(void);
 
@@ -18,12 +18,18 @@ static void force_sense_read_sense(void);
 	 * @brief: Reads the voltage from the INA via ADC, save the raw value in memory.
 	 */
 static void force_sense_read_sense() {
+
+    uint16_t forceBuffer = 0;
+    sForceSenseLastReadout = 0;
 	
-	adc_start_conversion(&gAdcInstance);
+    for(uint8_t i = 0; i <= AVERAGE_NUMBER; i++){
+	    adc_start_conversion(&gAdcInstance);
 	
-	while(adc_read(&gAdcInstance, &sForceSenseLastReadout) == STATUS_BUSY){
-		//Wait till conversion is finished
-	}
+	    while(adc_read(&gAdcInstance, &forceBuffer) == STATUS_BUSY){
+		    //Wait till conversion is finished
+	    }
+        sForceSenseLastReadout = AVG(sForceSenseLastReadout, forceBuffer);
+    }
 
     #if LOGS == 2
     rprintf("LOG: new RAW ADC value: %d\r\n", sForceSenseLastReadout);
@@ -36,7 +42,7 @@ static void force_sense_read_sense() {
 void force_sense_calibrate() {
 	
 	force_sense_read_sense();
-	sForceSenseZeroValue = sForceSenseLastReadout;
+	sForceSenseZeroForce = sForceSenseLastReadout * FORCE_SENSE_mN_PER_BIT;
 }
 
     /* 
@@ -46,9 +52,9 @@ void force_sense_calibrate() {
 int16_t force_sense_get_millinewton() {
 	
 	force_sense_read_sense();
-	int16_t force_mN = (sForceSenseLastReadout - sForceSenseZeroValue) / FORCE_SENSE_mN_PER_COUNT;
+	uint16_t absForce_mN = sForceSenseLastReadout * FORCE_SENSE_mN_PER_BIT;
 	
-	return force_mN;
+	return absForce_mN - sForceSenseZeroForce;
 }
 
 
@@ -58,10 +64,7 @@ int16_t force_sense_get_millinewton() {
 	 */
 int16_t force_sense_get_gramm() {
 	
-	force_sense_read_sense();
-	int16_t force_g = (sForceSenseLastReadout - sForceSenseZeroValue) / FORCE_SENSE_g_PER_COUNT;
-	
-	return force_g;
+	return force_sense_get_millinewton() * 10;
 }
 
 /* This function is only used in testmode 1 to get the value of the ADC in micro volts. */

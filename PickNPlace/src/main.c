@@ -33,6 +33,7 @@ struct usart_module gUsartInstance;
 struct tc_module pwm_timer;
 struct tc_module int_timer;
 
+/* This variable holds the state of the state machine. */
 static volatile System_State_t sSystemState;
 
 static void configure_spi_master(void){
@@ -66,9 +67,9 @@ static void configure_stepper_motor(void) {
 	stepper_motor_config.dead_time_insert = DRV_DTIME_850ns;
 	stepper_motor_config.drv_torque = 0x14;
 	stepper_motor_config.backemf_sample_th = DRV_SMPLTH_100us;
-	stepper_motor_config.drv_toff = 0xA0; // Check if change is needed
+	stepper_motor_config.drv_toff = 0xA0;
 	stepper_motor_config.pwm_mode = DRV_PWMMODE_INTERNAL;
-	stepper_motor_config.drv_tblank = 0x80; //Check if change is needed
+	stepper_motor_config.drv_tblank = 0x80;
 	stepper_motor_config.adaptive_blanking_time= DRV_ABT_DISABLE;
 	stepper_motor_config.drv_tdecay = 0x10;
 	stepper_motor_config.decay_mode = DRV_DECMOD_FORCE_AUTOMIXED;
@@ -90,8 +91,8 @@ static void configure_stepper_motor(void) {
 }
 
 static void configure_timer(void){
-    struct tc_config pwm_timer_config;
-    struct tc_config int_timer_config;
+    struct tc_config pwm_timer_config;  //TC used to generate pulses for the stepper motor
+    struct tc_config int_timer_config;  //TC used to generate interupts for the force transmission
 
     tc_get_config_defaults(&pwm_timer_config);
     pwm_timer_config.counter_size = TC_COUNTER_SIZE_16BIT;
@@ -122,6 +123,7 @@ static void configure_timer(void){
 static void configure_port_pins(void)
 {
 	struct port_config config_port_pin;
+
 	port_get_config_defaults(&config_port_pin);
 	config_port_pin.direction  = PORT_PIN_DIR_OUTPUT;
 	config_port_pin.input_pull = PORT_PIN_PULL_DOWN;
@@ -135,12 +137,19 @@ static void configure_port_pins(void)
 }
 
 
-static void configure_adc(void) // TODO: Check  if calibration is needed
+static void configure_adc(void)
 {
 	struct adc_config config_adc;
+
 	adc_get_config_defaults(&config_adc);
-	config_adc.negative_input = ADC_NEGATIVE_INPUT_GND; //Can be muxed to external pin
-	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN8; //Alternative for INA PCB PIN0
+    #if INA_BRIDGE == 0     //PINMUX for on board bridge amplifier
+    config_adc.negative_input = ADC_NEGATIVE_INPUT_GND;
+    config_adc.positive_input = ADC_POSITIVE_INPUT_PIN8;
+    #endif
+    #if INA_BRIDGE == 1     //PINMUX for external bridge amplifier
+	config_adc.negative_input = ADC_NEGATIVE_INPUT_PIN1;
+	config_adc.positive_input = ADC_POSITIVE_INPUT_PIN0;
+    #endif
 	config_adc.reference = ADC_REFERENCE_INT1V;
     config_adc.sample_length = 63;
     config_adc.accumulate_samples = ADC_ACCUMULATE_SAMPLES_1024;
@@ -150,8 +159,8 @@ static void configure_adc(void) // TODO: Check  if calibration is needed
 
 static void configure_usart(void){
 	struct usart_config config_usart;
-	usart_get_config_defaults(&config_usart);
-	
+
+	usart_get_config_defaults(&config_usart);	
 	config_usart.baudrate = 9600;
 	config_usart.mux_setting = EXT1_UART_SERCOM_MUX_SETTING;
 	config_usart.pinmux_pad0 = EXT1_UART_SERCOM_PINMUX_PAD0;
@@ -170,7 +179,7 @@ static void configure_usart(void){
 }
 
 static void configure_timer_callback(void){
-    tc_register_callback(&pwm_timer,drv_ctrl_pwm_callback ,TC_CALLBACK_OVERFLOW);
+    tc_register_callback(&pwm_timer, drv_ctrl_pwm_callback ,TC_CALLBACK_OVERFLOW);
     tc_enable_callback(&pwm_timer, TC_CALLBACK_OVERFLOW);
 
     tc_register_callback(&int_timer, plc_com_transmit_force,TC_CALLBACK_OVERFLOW);
@@ -189,7 +198,7 @@ static void configure_usart_callbacks(void){
 /*
  * @brief: changing the state variable at one single point. If system is in start state, just init is allowed.
  * @param: new system state of type system_states.
- * @returns: 0 when state is successfully set, 1 if change is not allowed
+ * @returns: 0 when state is successfully set, 1 if change is not allowed, 2 if MCU is busy
  */
 uint8_t set_state(System_State_t new_state) {
 
@@ -226,8 +235,6 @@ System_State_t get_state(void) {
 	
 }
 
-uint16_t notes1[15] = {7000, 6000, 7000, 3000, 3000, 0, 7000, 6000, 7000, 6000, 5500, 5500, 7000, 6000, 7000};
-
 
 int main (void)
 {
@@ -245,14 +252,21 @@ int main (void)
     configure_timer();
     configure_timer_callback();
 	system_interrupt_enable_global();
+
+    /*Setting the NVIC priority: highest priority is PWM interrupt to count pulses. Least Priority is force transmission. */
+    system_interrupt_set_priority(SYSTEM_INTERRUPT_MODULE_TC7, SYSTEM_INTERRUPT_PRIORITY_LEVEL_0);
+    system_interrupt_set_priority(SYSTEM_INTERRUPT_MODULE_TC0, SYSTEM_INTERRUPT_PRIORITY_LEVEL_3);
+    system_interrupt_set_priority(SYSTEM_INTERRUPT_MODULE_SERCOM4, SYSTEM_INTERRUPT_PRIORITY_LEVEL_1);
 	
 	sSystemState = start;
 	
 	plc_com_arm_receiver();
+
+    #if TESTMODE == 1
+    force_sense_calibrate();
+    #endif
 	
 	while (1) {
-		
-	//rprintf("LOOP");
 
     #if TESTMODE == 0
 
@@ -290,7 +304,9 @@ int main (void)
     #endif
 
     #if TESTMODE == 1
+    port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
     rprintf("Voltage in uVolt: %d\r\n", force_sense_get_uV());
+    rprintf("Force in mN: %d\r\n", force_sense_get_millinewton());
     delay_ms(1000);
     #endif
 

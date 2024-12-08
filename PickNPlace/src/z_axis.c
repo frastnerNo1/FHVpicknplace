@@ -22,8 +22,9 @@ typedef enum tools{
 	
 static Tool_t sTool;
 
-static void z_axis_grab_tool(void);
-static void z_axis_drop_tool(void);
+/* Private FPT for tool changes. */
+static uint8_t z_axis_grab_tool(void);
+static uint8_t z_axis_drop_tool(void);
 
      /*
 	  * @brief: Initialize the Z_axis: move to home position and calibrate the force sensor. Tool is set to pick tool.
@@ -35,16 +36,19 @@ void z_axis_home() {
     #endif
 	
 	drv_ctrl_home();
+    delay_ms(WAIT_TIME_ms);
 	force_sense_calibrate();
 	sTool = pick_tool;
-    drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
 	set_state(success);
 }
 
     /*
 	 * @brief: Move down to pick position, switch on magnet and move up to travel position, then send the success message to the PLC.
+     * If out of position error occurred, init homing and report error.
 	 */
 void z_axis_pick_sample(){
+
+    uint8_t status = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_PICK_SAMPLE\r\n");
@@ -55,17 +59,26 @@ void z_axis_pick_sample(){
 		return;
 	}
 	
-	drv_ctrl_moveto(PICK_HEIGHT_mm);
+	status = drv_ctrl_moveto(PICK_HEIGHT_STEPS);
 	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
 	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	set_state(success);
+	status = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
+
+    if(status == 1){
+    	drv_ctrl_home();
+    	plc_com_error(e_position);
+    } else {
+        set_state(success);
+    }
 }
 
     /*
 	 * @brief: Move down to place position, switch of magnet and move up to travel position, then send the success message to the PLC.
+     * If out of position error occurred, init homing and report error.
 	 */
 void z_axis_place_sample(){
+
+    uint8_t status = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_PLACE_SAMPLE\r\n");
@@ -76,19 +89,27 @@ void z_axis_place_sample(){
 		return;
 	}
 	
-	drv_ctrl_moveto(PLACE_HEIGHT_mm);
+	status = drv_ctrl_moveto(PLACE_HEIGHT_STEPS);
 	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
 	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	set_state(success);
+	status = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
+
+    if(status == 1){
+        drv_ctrl_home();
+        plc_com_error(e_position);
+    } else {
+        set_state(success);
+    }
 }
 
     /* 
 	 * @brief: Move down to the ink pad till the required force is reached. Then move to the travel position.
+     * If out of position error occurred, init homing and report error.
 	 */
 void z_axis_soak_stamp() {
 
-    uint8_t status = 0;
+    uint8_t forceStatus = 0;
+    uint8_t posStatus = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_SOAK_STAMP\r\n");
@@ -99,13 +120,16 @@ void z_axis_soak_stamp() {
 		return;
 	}
 	
-	drv_ctrl_moveto(SOAK_HEIGHT_mm);
-	status = drv_ctrl_move_till_force(SOAK_FORCE_mN);
+	posStatus = drv_ctrl_moveto(SOAK_HEIGHT_STEPS);
+	forceStatus = drv_ctrl_move_till_force(SOAK_FORCE_mN);
 	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	posStatus = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
 
-    if(status == 0){
+    if(forceStatus == 0 && posStatus == 0){
 	    set_state(success);
+    } else if (posStatus == 1){
+        drv_ctrl_home();
+        plc_com_error(e_position);
     } else {
         plc_com_error(e_force);
     }
@@ -114,10 +138,12 @@ void z_axis_soak_stamp() {
 
     /* 
 	 * @brief: Move down to the box till the required force is reached. Then move to the travel position.
+     * If out of position error occurred, init homing and report error.
 	 */
 void z_axis_stamp() {
 
-    uint8_t status = 0;
+    uint8_t forceStatus = 0;
+    uint8_t posStatus = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_STAMP\r\n");
@@ -128,54 +154,28 @@ void z_axis_stamp() {
 		return;
 	}
 	
-	drv_ctrl_moveto(STAMP_HEIGHT_mm);
-	status = drv_ctrl_move_till_force(STAMP_FORCE_mN);
+	posStatus = drv_ctrl_moveto(STAMP_HEIGHT_STEPS);
+	forceStatus = drv_ctrl_move_till_force(STAMP_FORCE_mN);
 	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
+	posStatus = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
 	
-    if(status == 0){
+    if(forceStatus == 0 && posStatus == 0){
         set_state(success);
-        } else {
+    } else if (posStatus == 1){
+        drv_ctrl_home();
+        plc_com_error(e_position);
+    } else {
         plc_com_error(e_force);
     }
 }
 
-    /*
-	 * @brief: Move down to the tool, switch on magnet, move to travel position and calibrate the force sensor.
-	 */
-static void z_axis_grab_tool(void) {
-
-    #if LOGS >= 1
-    rprintf("LOG: Z_GRAB_TOOL\r\n");
-    #endif
-	
-	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
-	drv_ctrl_moveto(TOOL_GRAB_HEIGHT_mm);
-	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	force_sense_calibrate();
-}
-
-    /*
-	 * @brief: Move down to the tool holder, switch off magnet, move to travel position and calibrate the force sensor.
-	 */
-static void z_axis_drop_tool(void) {
-
-    #if LOGS >= 1
-    rprintf("LOG: Z_DROP_TOOL\r\n");
-    #endif
-	
-	drv_ctrl_moveto(TOOL_DROP_HEIGHT_mm);
-	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
-	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	force_sense_calibrate();
-}
-
     /* 
 	 * @brief: Here the sequence for closing the lid is implemented. This sequence has to be defined, based on the mechanical aspects of the machine.
+     * If out of position error occurred, init homing and report error.
 	 */
 void z_axis_close_lid() {
+
+    uint8_t status = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_CLOSE_LID\r\n");
@@ -186,27 +186,84 @@ void z_axis_close_lid() {
 		return;
 	}
 	
-	drv_ctrl_moveto(CLOSE_HEIGHT_mm);
+	status = drv_ctrl_moveto(CLOSE_HEIGHT_STEPS);
 	delay_ms(WAIT_TIME_ms);
-	drv_ctrl_moveto(TRAVEL_HEIGHT_mm);
-	set_state(success);
+	status = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
+
+    if(status == 1){
+        drv_ctrl_home();
+        plc_com_error(e_position);
+        } else {
+        set_state(success);
+    }
 }
 
     /* 
 	 * @brief: Sequence for tool changing. This sequence calls static function drop_tool and grab_tool based on the actual tool.
+     * If out of position error occurred, init homing and report error.
 	 */
 void z_axis_change_tool() {
+
+    uint8_t status = 0;
 
     #if LOGS >= 1
     rprintf("LOG: Z_CHANGE_TOOL\r\n");
     #endif
 	
 	if(sTool == pick_tool){
-		z_axis_grab_tool();
+		status = z_axis_grab_tool();
 		sTool = stamp_tool;
 	} else {
-		z_axis_drop_tool();
+		status = z_axis_drop_tool();
 		sTool = pick_tool;
 	}
-	set_state(success);
+
+    if(status == 1){
+        drv_ctrl_home();
+        plc_com_error(e_position);
+        } else {
+        set_state(success);
+    }
+}
+
+    /*
+	 * @brief: Move down to the tool, switch on magnet, move to travel position and calibrate the force sensor.
+     * If out of position error occurred, set state to 1.
+	 */
+static uint8_t z_axis_grab_tool(void) {
+
+    uint8_t status = 0;
+
+    #if LOGS >= 1
+    rprintf("LOG: Z_GRAB_TOOL\r\n");
+    #endif
+	
+	port_pin_set_output_level(MAGNET_SWITCH_PIN, true);
+	status = drv_ctrl_moveto(TOOL_GRAB_HEIGHT_STEPS);
+	delay_ms(WAIT_TIME_ms);
+	status = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
+	force_sense_calibrate();
+
+    return status;
+}
+
+    /*
+	 * @brief: Move down to the tool holder, switch off magnet, move to travel position and calibrate the force sensor.
+     * If out of position error occurred, set state to 1.
+	 */
+static uint8_t z_axis_drop_tool(void) {
+    
+    uint8_t status = 0;
+
+    #if LOGS >= 1
+    rprintf("LOG: Z_DROP_TOOL\r\n");
+    #endif
+	
+	status = drv_ctrl_moveto(TOOL_DROP_HEIGHT_STEPS);
+	port_pin_set_output_level(MAGNET_SWITCH_PIN, false);
+	delay_ms(WAIT_TIME_ms);
+	status = drv_ctrl_moveto(TRAVEL_HEIGHT_STEPS);
+	force_sense_calibrate();
+
+    return status;
 }

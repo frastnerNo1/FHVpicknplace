@@ -14,17 +14,18 @@
 #define DIRECTION_UP                    false
 #define DIRECTION_DOWN                  !DIRECTION_UP
 
-#define STEPPER_PULSE_PERIOD_ms         180
-#define STEPPER_PULSE_SLOW_PERIOD_ms    2000
+#define STEPPER_PULSE_PERIOD_us         180
+#define STEPPER_PULSE_SLOW_PERIOD_us    2000
 
-#define Z_AXIS_MAX_TRAVEL               10000
-#define Z_AXIS_MAX_STAMP_DISTANCE       1200
-#define Z_AXIS_MM_PER_REV               13
+#define Z_AXIS_MAX_TRAVEL               15000   //Maximum stepts which are allowed for a movement
+#define Z_AXIS_MAX_STAMP_DISTANCE       1200    //If force is not reached in this distance, the movement is abortet
+#define Z_AXIS_HOME_RETRACTION          1000    //Retraction distance from homing switch if switch is already triggered
+#define Z_AXIS_HOME_POSITION            700     //Initial home position
 
-#define Z_AXIS_STEPS_PER_REV            200
-#define Z_AXIS_MICROSTEPS               8
-#define Z_AXIS_STEPS_PER_MM             (uint16_t)((Z_AXIS_STEPS_PER_REV * Z_AXIS_MICROSTEPS) / Z_AXIS_MM_PER_REV)
 
+/* Following lines are for easier usage of the DRV8711 driver.
+ * The are implementing enums for the configurations and a config struct.
+ */
 
 /* Registers of DRV8711 */
 
@@ -236,21 +237,22 @@ typedef struct drv_config_struct {
 	enum drv_idrivep hs_current;
 	
 	} Driver_Instance_t;
-	
-void drv_ctrl_init(Driver_Instance_t *);
 
-void drv_ctrl_enable(void);
 
-void drv_ctrl_disable(void);
+    void drv_ctrl_init(Driver_Instance_t *);
 
-void drv_ctrl_set_torque(uint8_t torquePercent);
+    void drv_ctrl_enable(void);
 
-void drv_ctrl_home(void);
+    void drv_ctrl_disable(void);
 
-void drv_ctrl_moveto(uint16_t);
+    void drv_ctrl_set_torque(uint8_t torquePercent);
 
-uint8_t drv_ctrl_move_till_force(uint16_t);
+    void drv_ctrl_home(void);
 
-void drv_ctrl_pwm_callback(struct tc_module *);
+    uint8_t drv_ctrl_moveto(uint16_t);
+
+    uint8_t drv_ctrl_move_till_force(uint16_t);
+
+    void drv_ctrl_pwm_callback(struct tc_module *);
 
 #endif /* DRV_CTRL_H_ */

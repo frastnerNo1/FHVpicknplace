@@ -20,7 +20,7 @@
 /*Global enable for console logs: 0 = OFF, 1 = LOG, 2 = VERBOSE LOG*/
 #define LOGS        2
 
-#define TEST_DELAY 5000
+#define TEST_DELAY 5000     //Delaytime for responses in UART test mode
 
 #include <asf.h>
 #include <stdint.h>
@@ -43,18 +43,19 @@
 #define MOTOR_CONTROLLER_STP_PIN        EXT2_PIN_6
 #define MAGNET_SWITCH_PIN               EXT2_PIN_7
 #define Z_AXIS_ZERO_SWITCH_PIN          EXT2_PIN_8
+
 #define PLC_COM_CMD_PIN                 EXT3_PIN_5
+#define ADC_REFERENCE_PIN				EXT3_PIN_4  //For second INA PCB = AIN[1]
 
-#define ADC_REFERENCE_PIN				EXT3_PIN_4  //NOT IN USE
-
-#define FORCE_SEND_PERIOD_MS            500
-#define PWM_START_PERIOD                2000        //Initial period of PWM signal in MS
+#define FORCE_SEND_PERIOD_MS            500         //Interval for pushing force measurements to PLC
+#define PWM_START_PERIOD                2000        //Initial period of PWM signal in ms
 #define PWM_DUTY                        2           //Duty cycle divider of PWM signal
-#define CLK_FREQ                        8000000UL   //Clock frequency of main clock, 2 = 50%
-#define PRESC                           64          //Prescaler for timer
+#define CLK_FREQ                        8000000UL   //Clock frequency of main clock
+#define PRESC_PWM                       64          //Prescaler for timer
+#define PRESC_INT                       1024
 
-#define PERIOD_TO_CCVAL(a)              ((a * (CLK_FREQ / PRESC)) / 1000000) //ARGS: a = period in US
-#define INT_TIMER_CC_VALUE              ((FORCE_SEND_PERIOD_MS * (CLK_FREQ / 1024)) / 1000)
+#define PERIOD_TO_CCVAL(a)              ((a * (CLK_FREQ / PRESC_PWM)) / 1000000)                 //ARGS: a = period in US
+#define INT_TIMER_CC_VALUE              ((FORCE_SEND_PERIOD_MS * (CLK_FREQ / PRESC_INT)) / 1000)
 
 typedef enum system_states {
 	start,

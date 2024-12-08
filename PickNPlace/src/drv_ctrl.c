@@ -210,7 +210,20 @@ void drv_ctrl_home() {
     #endif
 
     drv_ctrl_set_torque(20);
-	drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_SLOW_PERIOD_ms);
+	drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_us, STEPPER_PULSE_SLOW_PERIOD_us);
+
+    /* If switch is already triggered, first move downward to ensure defined positioning afterwards. */
+    if(!port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN)){
+        port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
+        sStepcounter = Z_AXIS_HOME_RETRACTION;
+        tc_start_counter(&pwm_timer);
+        while (sStepcounter > 0)
+        {
+            //wait till pos is reached
+        }
+    }
+
+    /* Move upward, till switch is triggerd. */
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, up);
     sStepcounter = Z_AXIS_MAX_TRAVEL;
     tc_start_counter(&pwm_timer);
@@ -219,7 +232,16 @@ void drv_ctrl_home() {
 		//wait till home pos is reached
 	}
 	tc_stop_counter(&pwm_timer);
-	sActualPositionSteps = 0;
+
+    /* Move to homeposition. */
+    port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
+    sStepcounter = Z_AXIS_HOME_POSITION;
+    tc_start_counter(&pwm_timer);
+    while(sStepcounter > 0){
+        //Wait till drive finished movement
+    }
+
+	sActualPositionSteps = Z_AXIS_HOME_POSITION;
 
     drv_ctrl_set_torque(10);
 		
@@ -228,24 +250,26 @@ void drv_ctrl_home() {
     /* 
      * @brief:  Move to position, check for out of range error.
      *          When movement is complete set new position. This function is blocking!!
-     * @param:  Target positon in mm
+     * @param:  Target positon in steps
+     * @returns: Status as uint8_t: 0 is success, 1 = position error, 2 = out of range error
 	 */
-void drv_ctrl_moveto(uint16_t position_mm) {
+uint8_t drv_ctrl_moveto(uint16_t target_steps) {
+
+    uint8_t status = 0;
 
     #if LOGS == 2
-    rprintf("LOG: move to %d mm\r\n", position_mm);
+    rprintf("LOG: move to %d mm\r\n", target_steps);
     #endif
 	
-	if(position_mm > Z_AXIS_MAX_TRAVEL) {
+	if(target_steps > Z_AXIS_MAX_TRAVEL) {
 		    #if LOGS == 2
-		    rprintf("Exceed max travel!\r\n", position_mm);
+		    rprintf("Exceed max travel!\r\n", target_steps);
 		    #endif
-		return;
+            status = 2;
+		return status;
 	}
 
     drv_ctrl_set_torque(90);
-	
-	uint32_t target_steps = position_mm;
 	
 	enum direction dir = (sActualPositionSteps > target_steps) ? up : down;
 	sStepcounter = abs(sActualPositionSteps - target_steps);
@@ -254,25 +278,33 @@ void drv_ctrl_moveto(uint16_t position_mm) {
 	    #endif
 	
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, dir);
-    drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_PERIOD_ms);
+    drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_us, STEPPER_PULSE_PERIOD_us);
 	tc_start_counter(&pwm_timer);
 
-    while(sStepcounter > 0){
+    while(sStepcounter > 0 && port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN)){
 	    #if LOGS == 2
 	    rprintf("LOG: travel %d steps.\r\n", sStepcounter);
 	    #endif        
         //Wait till drive finished movement
     }
+
+    if(!port_pin_get_input_level(Z_AXIS_ZERO_SWITCH_PIN)){
+        tc_stop_counter(&pwm_timer);
+        status = 1;
+    }
 	
 	sActualPositionSteps = target_steps;
     
     drv_ctrl_set_torque(10);
+
+    return status;
 }
 
 
     /*
 	 * @brief:  Move till defined force is reached. When defined force is reached the drive will stop and retract.
      * @param:  Target force in mN
+     * @returns: status as uint8_t: 0 = success, 1 = target force was not reached
 	 */
 uint8_t drv_ctrl_move_till_force(uint16_t force_mN) {
 
@@ -287,7 +319,7 @@ uint8_t drv_ctrl_move_till_force(uint16_t force_mN) {
 	port_pin_set_output_level(MOTOR_CONTROLLER_DIR_PIN, down);
 	
     sStepcounter = Z_AXIS_MAX_STAMP_DISTANCE;
-    drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_ms, STEPPER_PULSE_SLOW_PERIOD_ms);
+    drv_ctrl_set_ramp_params(STEPPER_PULSE_SLOW_PERIOD_us, STEPPER_PULSE_SLOW_PERIOD_us);
     tc_start_counter(&pwm_timer);
 	while(abs(force_sense_get_millinewton()) < force_mN && sStepcounter > 0) {
         // Wait till desired force is reached or distance exceeds max stamp distance
@@ -308,6 +340,10 @@ uint8_t drv_ctrl_move_till_force(uint16_t force_mN) {
     return status;
 }
 
+    /*
+	 * @brief:  Stops the motor when steps reached 0. Also handles the acceleration ramp.
+     * @param:  tc_module
+	 */
 void drv_ctrl_pwm_callback(struct tc_module *const module_inst){
     
     if(sStepcounter == 0){

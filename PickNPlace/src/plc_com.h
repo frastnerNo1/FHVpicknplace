@@ -26,6 +26,7 @@ typedef enum errorCodes {
 	e_wrong_tool    = '2',
     e_not_ready     = '3',
     e_force         = '4',
+    e_position      = '5',
 	e_general_error = '0'
 } Error_Code_t;
 
